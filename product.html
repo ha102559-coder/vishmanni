@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="metaTitle">商品詳情｜芳萃本草</title>
+  <meta name="description" id="metaDesc" content="芳萃本草天然精油，100%純植物萃取，SGS國際認證。">
+  <meta property="og:title" id="ogTitle" content="商品詳情｜芳萃本草">
+  <meta property="og:description" id="ogDesc" content="">
+  <meta property="og:image" id="ogImage" content="">
+  <meta property="og:type" content="product">
+  <link rel="canonical" id="canonical" href="https://yourdomain.com/product.html">
+
+  <script type="application/ld+json" id="productSchema">{"@context":"https://schema.org","@type":"Product"}</script>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, getDoc, collection, getDocs, query, where, limit, orderBy }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs7XOKmhYd4faBrODmsz913Ipc0dSnSlI",
+      authDomain: "vishmanni-b2f15.firebaseapp.com",
+      projectId: "vishmanni-b2f15",
+      storageBucket: "vishmanni-b2f15.firebasestorage.app",
+      messagingSenderId: "575119169685",
+      appId: "1:575119169685:web:fab464167abec7839d239c",
+      measurementId: "G-SW7LQLVH2P"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const productId = new URLSearchParams(location.search).get('id');
+    let currentProduct = null;
+    let currentMediaIndex = 0;
+    let allMedia = []; // { type:'image'|'video', src }
+
+    // 購物車
+    let cart = JSON.parse(localStorage.getItem('aromaCart') || '[]');
+    updateCartCount();
+
+    // ===== 載入商品 =====
+    async function init() {
+      if (!productId) { showError('找不到商品 ID'); return; }
+      try {
+        const snap = await getDoc(doc(db, 'products', productId));
+        if (!snap.exists() || snap.data().isActive === false) { showError('商品不存在或已下架'); return; }
+        currentProduct = { id: snap.id, ...snap.data() };
+        renderProduct(currentProduct);
+        loadRelated(currentProduct.category, productId);
+      } catch (e) {
+        showError('載入失敗，請稍後再試');
+        console.error(e);
+      }
+    }
+
+    function renderProduct(p) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('productMain').style.display = 'grid';
+
+      // SEO
+      document.title = `${p.name}｜芳萃本草`;
+      document.getElementById('metaTitle').textContent = `${p.name}｜芳萃本草`;
+      document.getElementById('metaDesc').content = (p.description || '').slice(0, 160);
+      document.getElementById('ogTitle').content = `${p.name}｜芳萃本草`;
+      document.getElementById('ogDesc').content = (p.description || '').slice(0, 160);
+      if (p.images?.[0]) document.getElementById('ogImage').content = p.images[0];
+      document.getElementById('canonical').href = `https://yourdomain.com/product.html?id=${productId}`;
+      document.getElementById('productSchema').textContent = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": p.name,
+        "description": p.description,
+        "image": p.images || [],
+        "brand": { "@type": "Brand", "name": "芳萃本草" },
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": "TWD",
+          "price": p.price,
+          "availability": (p.stock||0) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          "url": location.href
+        }
+      });
+
+      // 麵包屑
+      const catMap = { single:'單方精油', blend:'複方精油', diffuser:'擴香用品', set:'禮盒套組', carrier:'基底油' };
+      document.getElementById('breadcrumb').innerHTML =
+        `<a href="index.html">首頁</a> ›
+         <a href="products.html?cat=${p.category}">${catMap[p.category]||'所有商品'}</a> ›
+         <span>${p.name}</span>`;
+
+      // 組合媒體：圖片 + 影片
+      allMedia = [
+        ...(p.images||[]).map(s => ({ type:'image', src:s })),
+        ...(p.videos||[]).map(s => ({ type:'video', src:s }))
+      ];
+
+      renderGallery();
+
+      // 右欄資訊
+      document.getElementById('pCategory').textContent = catMap[p.category] || '';
+      document.getElementById('pName').textContent = p.name || '';
+      document.getElementById('pNameEn').textContent = p.nameEn || '';
+      document.getElementById('pPrice').textContent = `NT$ ${(p.price||0).toLocaleString()}`;
+      if (p.volume) document.getElementById('pVolume').textContent = p.volume;
+      document.getElementById('pDesc').textContent = p.description || '';
+
+      // 庫存
+      const stockEl = document.getElementById('stockStatus');
+      if ((p.stock||0) <= 0) {
+        stockEl.textContent = '目前缺貨'; stockEl.className = 'stock-status out';
+        document.getElementById('addCartBtn').disabled = true;
+        document.getElementById('addCartBtn').textContent = '目前缺貨';
+        document.getElementById('addCartBtn').classList.add('disabled');
+      } else if ((p.stock||0) <= 5) {
+        stockEl.textContent = `庫存僅剩 ${p.stock} 件`; stockEl.className = 'stock-status low';
+      } else {
+        stockEl.textContent = '現貨供應'; stockEl.className = 'stock-status ok';
+      }
+
+      // 標籤
+      const tagsEl = document.getElementById('pTags');
+      (p.tags||[]).forEach(t => {
+        const s = document.createElement('span');
+        s.className = 'tag'; s.textContent = t;
+        tagsEl.appendChild(s);
+      });
+
+      // 詳細資訊 Tabs
+      if (p.ingredients) document.getElementById('tabIngredients').textContent = p.ingredients;
+      if (p.usage) {
+        const usageEl = document.getElementById('tabUsage');
+        usageEl.innerHTML = '';
+        p.usage.split(/\n|；/).filter(Boolean).forEach(line => {
+          const li = document.createElement('li');
+          li.textContent = line.trim();
+          usageEl.appendChild(li);
+        });
+      }
+
+      // 精選徽章
+      if (p.isFeatured) {
+        const badge = document.createElement('span');
+        badge.className = 'featured-badge';
+        badge.textContent = '⭐ 精選商品';
+        document.getElementById('pName').insertAdjacentElement('beforebegin', badge);
+      }
+    }
+
+    // ===== 圖片/影片 Gallery =====
+    function renderGallery() {
+      const main = document.getElementById('mediaMain');
+      const thumbs = document.getElementById('mediaThumbs');
+      main.innerHTML = '';
+      thumbs.innerHTML = '';
+
+      if (allMedia.length === 0) {
+        main.innerHTML = `<div class="media-placeholder">🌿</div>`;
+        return;
+      }
+
+      allMedia.forEach((m, i) => {
+        // 縮圖
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb-item' + (i === 0 ? ' active' : '');
+        thumb.onclick = () => setMedia(i);
+        if (m.type === 'image') {
+          const img = document.createElement('img');
+          img.src = m.src; img.alt = `商品圖 ${i+1}`; img.loading = 'lazy';
+          thumb.appendChild(img);
+        } else {
+          thumb.innerHTML = `<div class="thumb-video-icon">▶</div>`;
+          thumb.style.background = '#2c2416';
+        }
+        thumbs.appendChild(thumb);
+      });
+
+      setMedia(0);
+    }
+
+    window.setMedia = (idx) => {
+      currentMediaIndex = idx;
+      const m = allMedia[idx];
+      const main = document.getElementById('mediaMain');
+
+      // 切換動畫
+      main.style.opacity = '0';
+      setTimeout(() => {
+        main.innerHTML = '';
+        if (m.type === 'image') {
+          const img = document.createElement('img');
+          img.src = m.src;
+          img.alt = currentProduct?.name || '商品圖片';
+          img.className = 'main-img';
+          img.onclick = () => openLightbox(idx);
+          main.appendChild(img);
+        } else {
+          const vid = document.createElement('video');
+          vid.src = m.src;
+          vid.controls = true;
+          vid.className = 'main-video';
+          vid.preload = 'metadata';
+          main.appendChild(vid);
+        }
+        main.style.opacity = '1';
+      }, 180);
+
+      // 縮圖高亮
+      document.querySelectorAll('.thumb-item').forEach((t, i) => {
+        t.classList.toggle('active', i === idx);
+      });
+
+      // 箭頭
+      document.getElementById('prevBtn').style.display = idx > 0 ? 'flex' : 'none';
+      document.getElementById('nextBtn').style.display = idx < allMedia.length - 1 ? 'flex' : 'none';
+    };
+
+    window.prevMedia = () => { if (currentMediaIndex > 0) setMedia(currentMediaIndex - 1); };
+    window.nextMedia = () => { if (currentMediaIndex < allMedia.length - 1) setMedia(currentMediaIndex + 1); };
+
+    // 鍵盤切換
+    document.addEventListener('keydown', e => {
+      if (document.getElementById('lightbox').style.display === 'flex') {
+        if (e.key === 'ArrowLeft') lightboxPrev();
+        if (e.key === 'ArrowRight') lightboxNext();
+        if (e.key === 'Escape') closeLightbox();
+        return;
+      }
+      if (e.key === 'ArrowLeft') prevMedia();
+      if (e.key === 'ArrowRight') nextMedia();
+    });
+
+    // ===== Lightbox =====
+    window.openLightbox = (idx) => {
+      const lb = document.getElementById('lightbox');
+      lb.style.display = 'flex';
+      setLightboxMedia(idx);
+      document.body.style.overflow = 'hidden';
+    };
+
+    window.closeLightbox = () => {
+      document.getElementById('lightbox').style.display = 'none';
+      document.body.style.overflow = '';
+    };
+
+    let lbIdx = 0;
+    function setLightboxMedia(idx) {
+      lbIdx = idx;
+      const m = allMedia[idx];
+      const lbMain = document.getElementById('lbMain');
+      lbMain.innerHTML = '';
+      if (m.type === 'image') {
+        const img = document.createElement('img');
+        img.src = m.src; img.className = 'lb-img';
+        lbMain.appendChild(img);
+      } else {
+        const vid = document.createElement('video');
+        vid.src = m.src; vid.controls = true; vid.className = 'lb-video';
+        lbMain.appendChild(vid);
+      }
+      document.getElementById('lbCounter').textContent = `${idx + 1} / ${allMedia.length}`;
+      document.getElementById('lbPrev').style.visibility = idx > 0 ? 'visible' : 'hidden';
+      document.getElementById('lbNext').style.visibility = idx < allMedia.length - 1 ? 'visible' : 'hidden';
+    }
+
+    window.lightboxPrev = () => { if (lbIdx > 0) setLightboxMedia(lbIdx - 1); };
+    window.lightboxNext = () => { if (lbIdx < allMedia.length - 1) setLightboxMedia(lbIdx + 1); };
+
+    // ===== Tabs =====
+    window.switchTab = (tab) => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+    };
+
+    // ===== 數量 =====
+    window.changeQty = (delta) => {
+      const inp = document.getElementById('qtyInput');
+      const max = currentProduct?.stock || 1;
+      let v = parseInt(inp.value) + delta;
+      v = Math.max(1, Math.min(v, max));
+      inp.value = v;
+    };
+
+    window.onQtyInput = () => {
+      const inp = document.getElementById('qtyInput');
+      const max = currentProduct?.stock || 1;
+      let v = parseInt(inp.value) || 1;
+      v = Math.max(1, Math.min(v, max));
+      inp.value = v;
+    };
+
+    // ===== 加入購物車 =====
+    window.addToCart = () => {
+      if (!currentProduct || (currentProduct.stock||0) <= 0) return;
+      const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+      const idx = cart.findIndex(i => i.id === productId);
+      if (idx >= 0) cart[idx].qty = Math.min(cart[idx].qty + qty, currentProduct.stock);
+      else cart.push({
+        id: productId,
+        name: currentProduct.name,
+        price: currentProduct.price,
+        volume: currentProduct.volume || '',
+        image: currentProduct.images?.[0] || '',
+        qty
+      });
+      localStorage.setItem('aromaCart', JSON.stringify(cart));
+      updateCartCount();
+      showAddedFeedback();
+    };
+
+    function showAddedFeedback() {
+      const btn = document.getElementById('addCartBtn');
+      const orig = btn.textContent;
+      btn.textContent = '✓ 已加入購物車';
+      btn.style.background = 'var(--success)';
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.style.background = '';
+      }, 1800);
+      showToast(`🛒 ${currentProduct.name} 已加入購物車`);
+    }
+
+    // 立即購買
+    window.buyNow = () => {
+      addToCart();
+      setTimeout(() => location.href = 'cart.html', 200);
+    };
+
+    function updateCartCount() {
+      const total = cart.reduce((s, i) => s + i.qty, 0);
+      document.querySelectorAll('.cart-count').forEach(el => el.textContent = total);
+    }
+
+    // ===== 相關商品 =====
+    async function loadRelated(category, excludeId) {
+      try {
+        const q = query(
+          collection(db, 'products'),
+          where('isActive', '==', true),
+          where('category', '==', category),
+          limit(5)
+        );
+        const snap = await getDocs(q);
+        const related = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(p => p.id !== excludeId)
+          .slice(0, 4);
+        if (related.length === 0) { document.getElementById('relatedSection').style.display = 'none'; return; }
+        const grid = document.getElementById('relatedGrid');
+        grid.innerHTML = '';
+        related.forEach(p => {
+          const card = document.createElement('a');
+          card.href = `product.html?id=${p.id}`;
+          card.className = 'related-card';
+          const thumb = p.images?.[0]
+            ? `<img src="${p.images[0]}" alt="${p.name}" loading="lazy">`
+            : `<div class="related-placeholder">${getCatIcon(p.category)}</div>`;
+          card.innerHTML = `
+            <div class="related-img">${thumb}</div>
+            <div class="related-info">
+              <div class="related-name">${p.name}</div>
+              <div class="related-en">${p.nameEn||''}</div>
+              <div class="related-price">NT$ ${(p.price||0).toLocaleString()}</div>
+            </div>`;
+          grid.appendChild(card);
+        });
+      } catch(e) {
+        document.getElementById('relatedSection').style.display = 'none';
+      }
+    }
+
+    // ===== 錯誤 =====
+    function showError(msg) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'flex';
+      document.getElementById('errorMsg').textContent = msg;
+    }
+
+    function getCatIcon(cat) {
+      return { single:'🌿', blend:'✨', diffuser:'💨', set:'🎁', carrier:'🫒' }[cat] || '📦';
+    }
+
+    window.showToast = (msg) => {
+      const t = document.createElement('div');
+      t.className = 'toast'; t.textContent = msg;
+      document.body.appendChild(t);
+      requestAnimationFrame(() => t.classList.add('show'));
+      setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 2500);
+    };
+
+    // 觸控滑動 gallery
+    let touchStartX = 0;
+    document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 50 && document.getElementById('mediaMain').contains(e.target)) {
+        if (dx < 0) nextMedia(); else prevMedia();
+      }
+    });
+
+    init();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --cream: #F7F3EC;
+      --warm-white: #FDFAF5;
+      --sage: #7A8C6E;
+      --sage-dark: #4E5E45;
+      --sage-light: #B5C4A8;
+      --gold: #C4A35A;
+      --gold-light: #DFC07A;
+      --bark: #6B4F3A;
+      --text: #2C2416;
+      --text-mid: #5C4E38;
+      --text-light: #9A8E7D;
+      --border: rgba(196,163,90,0.22);
+      --success: #27AE60;
+      --danger: #C0392B;
+      --radius: 3px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Noto Serif TC', serif; font-weight: 300; background: var(--warm-white); color: var(--text); }
+
+    /* ===== 導覽列 ===== */
+    nav { position: sticky; top: 0; z-index: 100; height: 68px; padding: 0 5vw; display: flex; align-items: center; justify-content: space-between; background: rgba(253,250,245,0.94); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+    nav.scrolled { box-shadow: 0 4px 24px rgba(44,36,22,0.07); }
+    .logo { text-decoration: none; line-height: 1.1; }
+    .logo .cn { font-size: 1.2rem; font-weight: 600; color: var(--sage-dark); letter-spacing: 0.12em; }
+    .logo .en { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.72rem; color: var(--gold); letter-spacing: 0.2em; }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { text-decoration: none; font-size: 0.82rem; letter-spacing: 0.08em; color: var(--text-mid); transition: color 0.25s; }
+    .nav-links a:hover { color: var(--sage-dark); }
+    .cart-btn { position: relative; background: none; border: 1.5px solid var(--sage); border-radius: 50px; padding: 0.38rem 1rem; font-family: 'Noto Serif TC', serif; font-size: 0.78rem; color: var(--sage-dark); cursor: pointer; letter-spacing: 0.06em; transition: all 0.3s; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; }
+    .cart-btn:hover { background: var(--sage-dark); color: white; border-color: var(--sage-dark); }
+    .cart-count { background: var(--gold); color: white; font-size: 0.62rem; min-width: 16px; height: 16px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0 3px; font-weight: 600; }
+
+    /* ===== 麵包屑 ===== */
+    .breadcrumb-bar { padding: 1rem 6vw; font-size: 0.75rem; color: var(--text-light); letter-spacing: 0.06em; border-bottom: 1px solid var(--border); background: var(--cream); }
+    .breadcrumb-bar a { color: var(--sage); text-decoration: none; }
+    .breadcrumb-bar a:hover { color: var(--sage-dark); }
+
+    /* ===== 載入 ===== */
+    #loadingState { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; gap: 1rem; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--sage); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loadingState p { font-size: 0.82rem; color: var(--text-light); letter-spacing: 0.08em; }
+
+    /* ===== 錯誤 ===== */
+    #errorState { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center; gap: 1rem; }
+    #errorState .err-icon { font-size: 3rem; opacity: 0.3; }
+    #errorState p { font-size: 0.88rem; color: var(--text-light); }
+    #errorState a { color: var(--sage); text-decoration: none; font-size: 0.85rem; }
+
+    /* ===== 主要商品區 ===== */
+    #productMain {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      max-width: 1200px;
+      margin: 3rem auto;
+      padding: 0 5vw;
+    }
+
+    /* ===== Gallery ===== */
+    .gallery-wrap { position: sticky; top: 88px; align-self: start; }
+
+    .media-main-wrap {
+      position: relative;
+      aspect-ratio: 1;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: zoom-in;
+    }
+
+    #mediaMain {
+      width: 100%; height: 100%;
+      transition: opacity 0.18s ease;
+    }
+
+    .main-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.5s;
+    }
+
+    .media-main-wrap:hover .main-img { transform: scale(1.04); }
+
+    .main-video {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      background: #1a1a1a;
+      cursor: default;
+    }
+
+    .media-placeholder {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 6rem; opacity: 0.2;
+    }
+
+    /* 箭頭 */
+    .gallery-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(253,250,245,0.9); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1rem; color: var(--text-mid);
+      transition: all 0.25s; z-index: 2; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .gallery-arrow:hover { background: var(--sage-dark); color: white; border-color: var(--sage-dark); }
+    #prevBtn { left: 0.7rem; display: none; }
+    #nextBtn { right: 0.7rem; display: none; }
+
+    /* 縮圖列 */
+    #mediaThumbs {
+      display: flex; gap: 0.6rem; margin-top: 0.8rem;
+      overflow-x: auto; padding-bottom: 4px;
+    }
+    #mediaThumbs::-webkit-scrollbar { height: 3px; }
+    #mediaThumbs::-webkit-scrollbar-track { background: var(--cream); }
+    #mediaThumbs::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 2px; }
+
+    .thumb-item {
+      width: 72px; height: 72px; flex-shrink: 0;
+      border: 2px solid transparent;
+      border-radius: var(--radius);
+      overflow: hidden; cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+      background: var(--cream);
+    }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb-item:hover { border-color: var(--sage-light); transform: translateY(-2px); }
+    .thumb-item.active { border-color: var(--sage-dark); }
+    .thumb-video-icon { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.4rem; }
+
+    /* 縮放提示 */
+    .zoom-hint {
+      position: absolute; bottom: 0.7rem; right: 0.7rem;
+      background: rgba(44,36,22,0.5); color: white;
+      font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 2px;
+      letter-spacing: 0.06em; pointer-events: none;
+    }
+
+    /* ===== 商品右欄 ===== */
+    .product-info { display: flex; flex-direction: column; gap: 0; padding-top: 0.5rem; }
+
+    .featured-badge { display: inline-block; background: rgba(196,163,90,0.15); color: var(--bark); font-size: 0.72rem; padding: 0.2rem 0.7rem; border-radius: 2px; letter-spacing: 0.08em; margin-bottom: 0.8rem; border: 1px solid rgba(196,163,90,0.3); }
+
+    #pCategory { font-size: 0.72rem; color: var(--sage); letter-spacing: 0.15em; margin-bottom: 0.5rem; }
+
+    #pName { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 600; letter-spacing: 0.05em; color: var(--text); line-height: 1.25; margin-bottom: 0.3rem; }
+
+    #pNameEn { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1rem; color: var(--text-light); margin-bottom: 1.2rem; letter-spacing: 0.08em; }
+
+    .price-row { display: flex; align-items: baseline; gap: 0.8rem; margin-bottom: 0.8rem; }
+    #pPrice { font-size: 1.8rem; font-weight: 700; color: var(--bark); font-family: 'Cormorant Garamond', serif; }
+    #pVolume { font-size: 0.82rem; color: var(--text-light); }
+
+    .divider { height: 1px; background: var(--border); margin: 1rem 0; }
+
+    .stock-status { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; margin-bottom: 0.8rem; display: inline-block; }
+    .stock-status.ok { color: var(--success); }
+    .stock-status.low { color: #E67E22; }
+    .stock-status.out { color: var(--danger); }
+
+    #pDesc { font-size: 0.88rem; line-height: 1.9; color: var(--text-mid); margin-bottom: 1.2rem; }
+
+    /* 標籤 */
+    #pTags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.5rem; }
+    .tag { font-size: 0.7rem; background: rgba(122,140,110,0.1); color: var(--sage-dark); padding: 0.2rem 0.6rem; border-radius: 2px; border: 1px solid rgba(122,140,110,0.2); }
+
+    /* 數量 */
+    .qty-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .qty-label { font-size: 0.8rem; color: var(--text-mid); letter-spacing: 0.06em; }
+    .qty-control { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .qty-btn { width: 36px; height: 36px; background: var(--cream); border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-mid); transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+    .qty-btn:hover { background: var(--sage-dark); color: white; }
+    #qtyInput { width: 48px; height: 36px; border: none; border-left: 1.5px solid var(--border); border-right: 1.5px solid var(--border); text-align: center; font-family: 'Noto Serif TC', serif; font-size: 0.9rem; background: white; color: var(--text); outline: none; }
+
+    /* 按鈕組 */
+    .action-btns { display: flex; gap: 0.8rem; margin-bottom: 1.5rem; }
+    #addCartBtn {
+      flex: 1; padding: 0.9rem;
+      background: var(--sage-dark); color: white; border: none;
+      font-family: 'Noto Serif TC', serif; font-size: 0.9rem;
+      letter-spacing: 0.1em; cursor: pointer;
+      border-radius: var(--radius); transition: all 0.3s;
+    }
+    #addCartBtn:hover:not(.disabled) { background: var(--gold); }
+    #addCartBtn.disabled { background: var(--text-light); cursor: not-allowed; }
+
+    #buyNowBtn {
+      flex: 1; padding: 0.9rem;
+      background: transparent; color: var(--bark);
+      border: 1.5px solid var(--gold); font-family: 'Noto Serif TC', serif;
+      font-size: 0.9rem; letter-spacing: 0.1em; cursor: pointer;
+      border-radius: var(--radius); transition: all 0.3s;
+    }
+    #buyNowBtn:hover { background: var(--gold); color: white; }
+
+    /* 保障列 */
+    .guarantees { display: flex; gap: 0; flex-wrap: wrap; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; }
+    .guarantee-item { flex: 1; min-width: 33%; padding: 0.7rem 0.5rem; text-align: center; border-right: 1px solid var(--border); background: var(--cream); }
+    .guarantee-item:last-child { border-right: none; }
+    .guarantee-item .g-icon { font-size: 1.2rem; display: block; margin-bottom: 0.2rem; }
+    .guarantee-item .g-text { font-size: 0.68rem; color: var(--text-mid); letter-spacing: 0.05em; line-height: 1.4; }
+
+    /* ===== 詳細資訊 Tabs ===== */
+    .tabs-section { max-width: 1200px; margin: 0 auto 4rem; padding: 0 5vw; }
+    .tabs-section h2 { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em; color: var(--text-light); margin-bottom: 1.2rem; }
+
+    .tab-btns { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .tab-btn { padding: 0.7rem 1.5rem; background: none; border: none; border-bottom: 2px solid transparent; font-family: 'Noto Serif TC', serif; font-size: 0.85rem; letter-spacing: 0.08em; color: var(--text-light); cursor: pointer; transition: all 0.25s; margin-bottom: -1px; }
+    .tab-btn:hover { color: var(--text-mid); }
+    .tab-btn.active { color: var(--sage-dark); border-bottom-color: var(--sage-dark); font-weight: 600; }
+
+    .tab-pane { display: none; animation: fadeIn 0.3s; }
+    .tab-pane.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .tab-pane p, #tabIngredients { font-size: 0.88rem; line-height: 1.9; color: var(--text-mid); }
+
+    #tabUsage { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+    #tabUsage li { font-size: 0.88rem; color: var(--text-mid); line-height: 1.7; padding-left: 1.2rem; position: relative; }
+    #tabUsage li::before { content: '✦'; position: absolute; left: 0; color: var(--gold); font-size: 0.6rem; top: 0.4rem; }
+
+    .cert-grid { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .cert-item { display: flex; align-items: center; gap: 0.6rem; background: var(--cream); border: 1px solid var(--border); padding: 0.7rem 1.2rem; border-radius: var(--radius); }
+    .cert-item .cert-icon { font-size: 1.5rem; }
+    .cert-item .cert-text { font-size: 0.78rem; color: var(--text-mid); line-height: 1.4; }
+    .cert-item .cert-text strong { display: block; font-size: 0.82rem; color: var(--sage-dark); }
+
+    /* ===== 相關商品 ===== */
+    #relatedSection { max-width: 1200px; margin: 0 auto 5rem; padding: 0 5vw; }
+    .section-tag { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.9rem; color: var(--gold); letter-spacing: 0.2em; display: block; margin-bottom: 0.5rem; }
+    #relatedSection h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: 0.08em; margin-bottom: 2rem; }
+    #relatedGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; }
+    .related-card { text-decoration: none; color: inherit; display: block; background: var(--warm-white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform 0.3s, box-shadow 0.3s; }
+    .related-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(44,36,22,0.09); }
+    .related-img { aspect-ratio: 1; overflow: hidden; background: var(--cream); }
+    .related-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; display: block; }
+    .related-card:hover .related-img img { transform: scale(1.05); }
+    .related-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; opacity: 0.35; }
+    .related-info { padding: 0.9rem 1rem; }
+    .related-name { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; letter-spacing: 0.04em; }
+    .related-en { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.75rem; color: var(--text-light); margin-bottom: 0.4rem; }
+    .related-price { font-size: 0.9rem; font-weight: 600; color: var(--bark); }
+
+    /* ===== Lightbox ===== */
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(10,8,5,0.93); z-index: 999; align-items: center; justify-content: center; flex-direction: column; }
+    #lbMain { max-width: 90vw; max-height: 82vh; display: flex; align-items: center; justify-content: center; }
+    .lb-img { max-width: 90vw; max-height: 82vh; object-fit: contain; display: block; }
+    .lb-video { max-width: 90vw; max-height: 82vh; }
+    .lb-close { position: absolute; top: 1.2rem; right: 1.5rem; background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.8rem; cursor: pointer; transition: color 0.2s; }
+    .lb-close:hover { color: white; }
+    .lb-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; transition: all 0.25s; }
+    .lb-arrow:hover { background: rgba(255,255,255,0.2); }
+    #lbPrev { left: 1.5rem; }
+    #lbNext { right: 1.5rem; }
+    #lbCounter { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.5); font-size: 0.78rem; letter-spacing: 0.1em; }
+
+    /* ===== Toast ===== */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--sage-dark); color: white; padding: 0.85rem 1.4rem; font-family: 'Noto Serif TC', serif; font-size: 0.85rem; letter-spacing: 0.05em; border-radius: var(--radius); box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 9999; opacity: 0; transform: translateY(8px); transition: all 0.35s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ===== 頁尾 ===== */
+    footer { background: var(--text); padding: 2rem 6vw; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+    footer p { font-size: 0.75rem; color: rgba(255,255,255,0.3); letter-spacing: 0.05em; }
+    footer a { font-size: 0.75rem; color: rgba(255,255,255,0.4); text-decoration: none; }
+    footer a:hover { color: var(--gold-light); }
+
+    /* ===== RWD ===== */
+    @media (max-width: 900px) {
+      #productMain { grid-template-columns: 1fr; gap: 2rem; margin: 2rem auto; }
+      .gallery-wrap { position: static; }
+      #relatedGrid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .nav-links { display: none; }
+      .action-btns { flex-direction: column; }
+      #relatedGrid { grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
+      .tab-btn { padding: 0.6rem 1rem; font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 導覽列 -->
+<nav id="navbar">
+  <a href="index.html" class="logo">
+    <div class="cn">芳萃本草</div>
+    <div class="en">Botanical Essence</div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="products.html">所有商品</a></li>
+    <li><a href="products.html?cat=single">單方精油</a></li>
+    <li><a href="products.html?cat=blend">複方精油</a></li>
+    <li><a href="products.html?cat=diffuser">擴香用品</a></li>
+    <li><a href="index.html#story">品牌故事</a></li>
+  </ul>
+  <a href="cart.html" class="cart-btn">🛒 購物車 <span class="cart-count">0</span></a>
+</nav>
+
+<!-- 麵包屑 -->
+<div class="breadcrumb-bar" id="breadcrumb">
+  <a href="index.html">首頁</a> › <a href="products.html">所有商品</a>
+</div>
+
+<!-- 載入中 -->
+<div id="loadingState">
+  <div class="spinner"></div>
+  <p>商品載入中…</p>
+</div>
+
+<!-- 錯誤 -->
+<div id="errorState">
+  <div class="err-icon">🌿</div>
+  <p id="errorMsg">找不到此商品</p>
+  <a href="products.html">← 返回商品列表</a>
+</div>
+
+<!-- ===== 商品主區塊 ===== -->
+<main id="productMain" itemscope itemtype="https://schema.org/Product">
+
+  <!-- 左：Gallery -->
+  <div class="gallery-wrap">
+    <div class="media-main-wrap">
+      <div id="mediaMain"></div>
+      <button class="gallery-arrow" id="prevBtn" onclick="prevMedia()">‹</button>
+      <button class="gallery-arrow" id="nextBtn" onclick="nextMedia()">›</button>
+      <div class="zoom-hint">點擊放大</div>
+    </div>
+    <div id="mediaThumbs"></div>
+  </div>
+
+  <!-- 右：商品資訊 -->
+  <div class="product-info">
+    <div id="pCategory"></div>
+    <h1 id="pName" itemprop="name"></h1>
+    <p id="pNameEn" itemprop="alternateName"></p>
+
+    <div class="price-row">
+      <span id="pPrice" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+        <meta itemprop="priceCurrency" content="TWD">
+      </span>
+      <span id="pVolume"></span>
+    </div>
+
+    <div class="divider"></div>
+
+    <span id="stockStatus" class="stock-status ok">現貨供應</span>
+
+    <p id="pDesc" itemprop="description"></p>
+
+    <div id="pTags"></div>
+
+    <!-- 數量 -->
+    <div class="qty-row">
+      <span class="qty-label">數量</span>
+      <div class="qty-control">
+        <button class="qty-btn" onclick="changeQty(-1)">−</button>
+        <input type="number" id="qtyInput" value="1" min="1" max="99" oninput="onQtyInput()">
+        <button class="qty-btn" onclick="changeQty(1)">＋</button>
+      </div>
+    </div>
+
+    <!-- 按鈕 -->
+    <div class="action-btns">
+      <button id="addCartBtn" onclick="addToCart()">＋ 加入購物車</button>
+      <button id="buyNowBtn" onclick="buyNow()">立即購買</button>
+    </div>
+
+    <!-- 保障 -->
+    <div class="guarantees">
+      <div class="guarantee-item">
+        <span class="g-icon">🔬</span>
+        <div class="g-text">SGS<br>國際認證</div>
+      </div>
+      <div class="guarantee-item">
+        <span class="g-icon">🚚</span>
+        <div class="g-text">全台宅配<br>1-3 日到貨</div>
+      </div>
+      <div class="guarantee-item">
+        <span class="g-icon">↩️</span>
+        <div class="g-text">7 天<br>鑑賞期</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ===== 詳細資訊 Tabs ===== -->
+<section class="tabs-section">
+  <div class="tab-btns">
+    <button class="tab-btn active" data-tab="desc" onclick="switchTab('desc')">商品說明</button>
+    <button class="tab-btn" data-tab="ingredients" onclick="switchTab('ingredients')">成分</button>
+    <button class="tab-btn" data-tab="usage" onclick="switchTab('usage')">使用方式</button>
+    <button class="tab-btn" data-tab="cert" onclick="switchTab('cert')">認證資訊</button>
+  </div>
+
+  <div id="tab-desc" class="tab-pane active">
+    <p id="tabDesc" style="font-size:.88rem;line-height:1.9;color:var(--text-mid)">商品描述載入中…</p>
+  </div>
+
+  <div id="tab-ingredients" class="tab-pane">
+    <p id="tabIngredients" style="font-size:.88rem;line-height:1.9;color:var(--text-mid)">成分資訊待補充</p>
+  </div>
+
+  <div id="tab-usage" class="tab-pane">
+    <ul id="tabUsage"></ul>
+  </div>
+
+  <div id="tab-cert" class="tab-pane">
+    <div class="cert-grid">
+      <div class="cert-item"><span class="cert-icon">🔬</span><div class="cert-text"><strong>SGS GC-MS 檢測</strong>每批次氣相色譜分析，確認純度</div></div>
+      <div class="cert-item"><span class="cert-icon">🌱</span><div class="cert-text"><strong>天然無添加</strong>不含香精、防腐劑、人工色素</div></div>
+      <div class="cert-item"><span class="cert-icon">🫙</span><div class="cert-text"><strong>深色玻璃瓶裝</strong>遮光保護，延長精油品質</div></div>
+      <div class="cert-item"><span class="cert-icon">♻️</span><div class="cert-text"><strong>環保包裝</strong>可回收紙盒，減少環境負擔</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 相關商品 ===== -->
+<section id="relatedSection">
+  <span class="section-tag">You May Also Like</span>
+  <h2>同系列商品</h2>
+  <div id="relatedGrid"></div>
+</section>
+
+<!-- ===== Lightbox ===== -->
+<div id="lightbox" onclick="closeLightbox()">
+  <button class="lb-close" onclick="closeLightbox()">✕</button>
+  <button class="lb-arrow" id="lbPrev" onclick="event.stopPropagation(); lightboxPrev()">‹</button>
+  <div id="lbMain" onclick="event.stopPropagation()"></div>
+  <button class="lb-arrow" id="lbNext" onclick="event.stopPropagation(); lightboxNext()">›</button>
+  <div id="lbCounter"></div>
+</div>
+
+<!-- 頁尾 -->
+<footer>
+  <p>© 2025 芳萃本草 Botanical Essence. All rights reserved.</p>
+  <div style="display:flex;gap:1.5rem">
+    <a href="index.html">首頁</a>
+    <a href="faq.html">常見問題</a>
+    <a href="contact.html">聯絡我們</a>
+  </div>
+</footer>
+
+<script>
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // 同步 tab-desc 與 pDesc
+  document.addEventListener('DOMContentLoaded', () => {
+    const obs = new MutationObserver(() => {
+      document.getElementById('tabDesc').textContent = document.getElementById('pDesc').textContent;
+    });
+    obs.observe(document.getElementById('pDesc'), { childList: true, characterData: true, subtree: true });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>購物車｜芳萃本草 Botanical Essence</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --cream: #F7F3EC;
+      --warm-white: #FDFAF5;
+      --sage: #7A8C6E;
+      --sage-dark: #4E5E45;
+      --sage-light: #B5C4A8;
+      --gold: #C4A35A;
+      --gold-light: #DFC07A;
+      --bark: #6B4F3A;
+      --text: #2C2416;
+      --text-mid: #5C4E38;
+      --text-light: #9A8E7D;
+      --border: rgba(196,163,90,0.22);
+      --danger: #C0392B;
+      --success: #27AE60;
+      --radius: 3px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 300;
+      background: var(--warm-white);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== 導覽列 ===== */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      height: 68px; padding: 0 5vw;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(253,250,245,0.95); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      transition: box-shadow 0.3s;
+    }
+    nav.scrolled { box-shadow: 0 4px 24px rgba(44,36,22,0.07); }
+    .logo { text-decoration: none; line-height: 1.1; }
+    .logo .cn { font-size: 1.2rem; font-weight: 600; color: var(--sage-dark); letter-spacing: 0.12em; }
+    .logo .en { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.72rem; color: var(--gold); letter-spacing: 0.2em; }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { text-decoration: none; font-size: 0.82rem; letter-spacing: 0.08em; color: var(--text-mid); transition: color 0.25s; }
+    .nav-links a:hover { color: var(--sage-dark); }
+    .nav-right { display: flex; align-items: center; gap: 1rem; }
+    .continue-btn { font-size: 0.8rem; color: var(--sage); text-decoration: none; letter-spacing: 0.06em; transition: color 0.25s; }
+    .continue-btn:hover { color: var(--sage-dark); }
+
+    /* ===== 頁首 ===== */
+    .page-hero {
+      background: var(--cream);
+      padding: 2.5rem 6vw;
+      border-bottom: 1px solid var(--border);
+    }
+    .breadcrumb { font-size: 0.75rem; color: var(--text-light); letter-spacing: 0.06em; margin-bottom: 0.8rem; }
+    .breadcrumb a { color: var(--sage); text-decoration: none; }
+    .page-hero h1 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 600; letter-spacing: 0.08em; }
+
+    /* ===== 步驟列 ===== */
+    .steps {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; padding: 1.5rem 6vw;
+      background: var(--warm-white);
+      border-bottom: 1px solid var(--border);
+    }
+    .step {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.78rem; letter-spacing: 0.06em;
+    }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 600;
+      border: 1.5px solid var(--border);
+      color: var(--text-light);
+      transition: all 0.3s;
+    }
+    .step.active .step-num { background: var(--sage-dark); color: white; border-color: var(--sage-dark); }
+    .step.active .step-label { color: var(--sage-dark); font-weight: 600; }
+    .step.done .step-num { background: var(--sage-light); color: var(--sage-dark); border-color: var(--sage-light); }
+    .step-label { color: var(--text-light); }
+    .step-line { width: 60px; height: 1px; background: var(--border); margin: 0 0.8rem; flex-shrink: 0; }
+    @media (max-width: 480px) { .step-line { width: 30px; } .step-label { display: none; } }
+
+    /* ===== 主體佈局 ===== */
+    .cart-layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 2rem;
+      max-width: 1100px;
+      margin: 2.5rem auto;
+      padding: 0 5vw;
+      flex: 1;
+      align-items: start;
+    }
+
+    /* ===== 購物車列表 ===== */
+    .cart-section { display: flex; flex-direction: column; gap: 1rem; }
+
+    .cart-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .cart-header h2 { font-size: 0.88rem; font-weight: 600; letter-spacing: 0.1em; color: var(--text-mid); }
+    .clear-btn {
+      font-size: 0.75rem; color: var(--text-light);
+      background: none; border: none; cursor: pointer;
+      letter-spacing: 0.05em; transition: color 0.2s;
+    }
+    .clear-btn:hover { color: var(--danger); }
+
+    /* 購物車項目 */
+    .cart-item {
+      display: grid;
+      grid-template-columns: 90px 1fr auto;
+      gap: 1.2rem;
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      align-items: center;
+      animation: slideIn 0.35s both;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .cart-item.removing { opacity: 0; transform: translateX(20px); }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 商品圖 */
+    .item-img {
+      width: 90px; height: 90px;
+      border-radius: var(--radius);
+      object-fit: cover;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .item-img-placeholder {
+      width: 90px; height: 90px;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.2rem; opacity: 0.45;
+      flex-shrink: 0;
+    }
+
+    /* 商品資訊 */
+    .item-info { display: flex; flex-direction: column; gap: 0.3rem; }
+    .item-name {
+      font-size: 0.95rem; font-weight: 600;
+      color: var(--text); letter-spacing: 0.04em;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .item-name:hover { color: var(--sage-dark); }
+    .item-volume { font-size: 0.75rem; color: var(--text-light); }
+    .item-unit-price { font-size: 0.78rem; color: var(--text-light); margin-top: 0.2rem; }
+
+    /* 數量 + 小計 */
+    .item-right {
+      display: flex; flex-direction: column;
+      align-items: flex-end; gap: 0.7rem;
+    }
+    .item-subtotal {
+      font-size: 1rem; font-weight: 600;
+      color: var(--bark);
+      font-family: 'Cormorant Garamond', serif;
+    }
+    .qty-control {
+      display: flex; align-items: center;
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .qty-btn {
+      width: 30px; height: 30px;
+      background: var(--cream); border: none;
+      font-size: 1rem; cursor: pointer;
+      color: var(--text-mid); transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qty-btn:hover { background: var(--sage-dark); color: white; }
+    .qty-num {
+      width: 38px; height: 30px;
+      border: none; border-left: 1.5px solid var(--border); border-right: 1.5px solid var(--border);
+      text-align: center; font-family: 'Noto Serif TC', serif;
+      font-size: 0.85rem; background: white; color: var(--text);
+      outline: none;
+    }
+    .remove-btn {
+      background: none; border: none;
+      font-size: 0.75rem; color: var(--text-light);
+      cursor: pointer; letter-spacing: 0.04em;
+      transition: color 0.2s; padding: 0;
+    }
+    .remove-btn:hover { color: var(--danger); }
+
+    /* ===== 空購物車 ===== */
+    #emptyCart {
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 5rem 2rem; text-align: center;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      background: var(--warm-white);
+    }
+    .empty-icon { font-size: 4rem; opacity: 0.25; margin-bottom: 1.2rem; }
+    #emptyCart h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-mid); margin-bottom: 0.5rem; }
+    #emptyCart p { font-size: 0.85rem; color: var(--text-light); margin-bottom: 2rem; }
+    .shop-btn {
+      display: inline-block; padding: 0.8rem 2rem;
+      background: var(--sage-dark); color: white;
+      text-decoration: none; font-size: 0.85rem;
+      letter-spacing: 0.1em; border-radius: var(--radius);
+      transition: background 0.3s;
+    }
+    .shop-btn:hover { background: var(--sage); }
+
+    /* ===== 推薦加購 ===== */
+    .upsell-section {
+      padding: 1.2rem;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .upsell-title { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; color: var(--text-light); margin-bottom: 0.8rem; }
+    .upsell-grid { display: flex; gap: 0.8rem; overflow-x: auto; padding-bottom: 4px; }
+    .upsell-grid::-webkit-scrollbar { height: 3px; }
+    .upsell-grid::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 2px; }
+    .upsell-card {
+      display: flex; align-items: center; gap: 0.7rem;
+      background: white; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.6rem 0.8rem;
+      min-width: 200px; flex-shrink: 0;
+      text-decoration: none; color: inherit;
+      transition: border-color 0.25s, transform 0.25s;
+      cursor: pointer;
+    }
+    .upsell-card:hover { border-color: var(--sage); transform: translateY(-2px); }
+    .upsell-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 2px; flex-shrink: 0; background: var(--cream); }
+    .upsell-info .upsell-name { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+    .upsell-info .upsell-price { font-size: 0.75rem; color: var(--bark); margin-top: 0.1rem; }
+    .upsell-add { margin-left: auto; font-size: 0.72rem; color: var(--sage-dark); border: 1px solid var(--sage); padding: 0.2rem 0.5rem; border-radius: 2px; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; background: none; cursor: pointer; font-family: 'Noto Serif TC', serif; }
+    .upsell-add:hover { background: var(--sage-dark); color: white; border-color: var(--sage-dark); }
+
+    /* ===== 結帳摘要 ===== */
+    .summary-box {
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: sticky;
+      top: 88px;
+    }
+
+    .summary-head {
+      padding: 1rem 1.4rem;
+      background: rgba(196,163,90,0.07);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem; font-weight: 600;
+      letter-spacing: 0.1em; color: var(--sage-dark);
+    }
+
+    .summary-body { padding: 1.4rem; display: flex; flex-direction: column; gap: 1rem; }
+
+    /* 優惠碼 */
+    .coupon-wrap { display: flex; gap: 0.5rem; }
+    .coupon-input {
+      flex: 1; padding: 0.6rem 0.8rem;
+      background: var(--cream); border: 1.5px solid var(--border);
+      border-radius: var(--radius); font-family: 'Noto Serif TC', serif;
+      font-size: 0.82rem; color: var(--text); outline: none;
+      letter-spacing: 0.06em; transition: border-color 0.25s;
+      text-transform: uppercase;
+    }
+    .coupon-input:focus { border-color: var(--sage); }
+    .coupon-btn {
+      padding: 0.6rem 1rem; background: var(--sage-dark); color: white;
+      border: none; font-family: 'Noto Serif TC', serif;
+      font-size: 0.8rem; cursor: pointer; border-radius: var(--radius);
+      letter-spacing: 0.06em; transition: background 0.25s; white-space: nowrap;
+    }
+    .coupon-btn:hover { background: var(--sage); }
+    .coupon-status { font-size: 0.75rem; margin-top: 0.3rem; }
+    .coupon-ok { color: var(--success); }
+    .coupon-fail { color: var(--danger); }
+
+    /* 運費選擇 */
+    .shipping-opts { display: flex; flex-direction: column; gap: 0.5rem; }
+    .shipping-opt {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.7rem 0.9rem;
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    }
+    .shipping-opt:has(input:checked) { border-color: var(--sage-dark); background: rgba(78,94,69,0.04); }
+    .shipping-opt-left { display: flex; align-items: center; gap: 0.6rem; }
+    .shipping-opt input[type="radio"] { accent-color: var(--sage-dark); }
+    .shipping-opt-label { font-size: 0.82rem; color: var(--text-mid); }
+    .shipping-opt-sub { font-size: 0.68rem; color: var(--text-light); display: block; }
+    .shipping-opt-price { font-size: 0.82rem; font-weight: 600; color: var(--bark); }
+    .free-tag { font-size: 0.65rem; background: rgba(39,174,96,0.12); color: var(--success); padding: 0.1rem 0.4rem; border-radius: 2px; }
+
+    /* 明細 */
+    .summary-row { display: flex; justify-content: space-between; align-items: center; }
+    .summary-label { font-size: 0.82rem; color: var(--text-mid); }
+    .summary-val { font-size: 0.85rem; color: var(--text); font-weight: 400; }
+    .summary-val.discount { color: var(--success); }
+    .summary-val.free { color: var(--success); font-weight: 600; }
+
+    .summary-divider { height: 1px; background: var(--border); }
+
+    .summary-total { display: flex; justify-content: space-between; align-items: baseline; }
+    .total-label { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.06em; }
+    .total-val { font-size: 1.5rem; font-weight: 700; color: var(--bark); font-family: 'Cormorant Garamond', serif; }
+    .total-hint { font-size: 0.68rem; color: var(--text-light); margin-top: 0.2rem; text-align: right; }
+
+    /* 免運進度條 */
+    .free-shipping-bar { background: var(--cream); border-radius: 2px; overflow: hidden; height: 6px; margin-top: 0.3rem; }
+    .free-shipping-fill { height: 100%; background: linear-gradient(90deg, var(--sage-light), var(--sage-dark)); border-radius: 2px; transition: width 0.5s ease; }
+    .free-shipping-hint { font-size: 0.72rem; color: var(--text-light); margin-top: 0.4rem; }
+    .free-shipping-hint span { color: var(--sage-dark); font-weight: 600; }
+
+    /* 結帳按鈕 */
+    .checkout-btn {
+      width: 100%; padding: 1rem;
+      background: var(--sage-dark); color: white;
+      border: none; font-family: 'Noto Serif TC', serif;
+      font-size: 0.95rem; letter-spacing: 0.12em;
+      cursor: pointer; border-radius: var(--radius);
+      transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .checkout-btn::before {
+      content: '';
+      position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: var(--gold);
+      transition: left 0.4s; z-index: 0;
+    }
+    .checkout-btn:hover::before { left: 0; }
+    .checkout-btn span { position: relative; z-index: 1; }
+    .checkout-btn:disabled { background: var(--text-light); cursor: not-allowed; }
+    .checkout-btn:disabled::before { display: none; }
+
+    .payment-hints {
+      display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;
+      font-size: 0.68rem; color: var(--text-light); letter-spacing: 0.04em;
+      margin-top: 0.8rem;
+    }
+    .payment-hints span { display: flex; align-items: center; gap: 0.2rem; }
+
+    /* ===== 頁尾 ===== */
+    footer {
+      background: var(--text); padding: 2rem 6vw;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem; margin-top: auto;
+    }
+    footer p { font-size: 0.75rem; color: rgba(255,255,255,0.3); letter-spacing: 0.05em; }
+    footer a { font-size: 0.75rem; color: rgba(255,255,255,0.4); text-decoration: none; }
+    footer a:hover { color: var(--gold-light); }
+
+    /* ===== Toast ===== */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--sage-dark); color: white; padding: 0.85rem 1.4rem; font-family: 'Noto Serif TC', serif; font-size: 0.85rem; letter-spacing: 0.05em; border-radius: var(--radius); box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 9999; opacity: 0; transform: translateY(8px); transition: all 0.35s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ===== RWD ===== */
+    @media (max-width: 860px) {
+      .cart-layout { grid-template-columns: 1fr; }
+      .summary-box { position: static; }
+    }
+    @media (max-width: 580px) {
+      .nav-links { display: none; }
+      .cart-item { grid-template-columns: 70px 1fr; }
+      .item-right { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; }
+    }
+    @media (max-width: 400px) {
+      .cart-item { grid-template-columns: 1fr; }
+      .item-img, .item-img-placeholder { width: 70px; height: 70px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 導覽列 -->
+<nav id="navbar">
+  <a href="index.html" class="logo">
+    <div class="cn">芳萃本草</div>
+    <div class="en">Botanical Essence</div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="products.html">所有商品</a></li>
+    <li><a href="products.html?cat=single">單方精油</a></li>
+    <li><a href="products.html?cat=blend">複方精油</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="products.html" class="continue-btn">← 繼續購物</a>
+  </div>
+</nav>
+
+<!-- 頁首 -->
+<div class="page-hero">
+  <div class="breadcrumb">
+    <a href="index.html">首頁</a> › 購物車
+  </div>
+  <h1>我的購物車</h1>
+</div>
+
+<!-- 步驟列 -->
+<div class="steps">
+  <div class="step active">
+    <div class="step-num">1</div>
+    <span class="step-label">購物車</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <span class="step-label">填寫資料</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <span class="step-label">付款</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <span class="step-label">完成訂單</span>
+  </div>
+</div>
+
+<!-- 主體 -->
+<div class="cart-layout" id="cartLayout">
+
+  <!-- 左：購物車列表 -->
+  <div class="cart-section">
+    <div class="cart-header">
+      <h2>商品清單 <span id="itemCountLabel" style="font-weight:300;color:var(--text-light)"></span></h2>
+      <button class="clear-btn" onclick="clearCart()">清空購物車</button>
+    </div>
+
+    <!-- 購物車項目容器 -->
+    <div id="cartItems"></div>
+
+    <!-- 空購物車 -->
+    <div id="emptyCart">
+      <div class="empty-icon">🛒</div>
+      <h3>購物車是空的</h3>
+      <p>還沒加入任何商品，去逛逛吧！</p>
+      <a href="products.html" class="shop-btn">探索精油系列</a>
+    </div>
+
+    <!-- 推薦加購 -->
+    <div class="upsell-section" id="upsellSection" style="display:none">
+      <div class="upsell-title">🌿 你可能也會喜歡</div>
+      <div class="upsell-grid" id="upsellGrid">
+        <!-- 示範資料（上線後改為 Firebase 動態載入） -->
+        <div class="upsell-card" onclick="upsellAdd('lavender','薰衣草精油',680,'')">
+          <div class="upsell-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">🌸</div>
+          <div class="upsell-info">
+            <div class="upsell-name">薰衣草精油</div>
+            <div class="upsell-price">NT$ 680</div>
+          </div>
+          <button class="upsell-add">＋ 加入</button>
+        </div>
+        <div class="upsell-card" onclick="upsellAdd('teatree','茶樹精油',580,'')">
+          <div class="upsell-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">🍃</div>
+          <div class="upsell-info">
+            <div class="upsell-name">茶樹精油</div>
+            <div class="upsell-price">NT$ 580</div>
+          </div>
+          <button class="upsell-add">＋ 加入</button>
+        </div>
+        <div class="upsell-card" onclick="upsellAdd('peppermint','薄荷精油',520,'')">
+          <div class="upsell-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">🌱</div>
+          <div class="upsell-info">
+            <div class="upsell-name">薄荷精油</div>
+            <div class="upsell-price">NT$ 520</div>
+          </div>
+          <button class="upsell-add">＋ 加入</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右：結帳摘要 -->
+  <aside>
+    <div class="summary-box" id="summaryBox" style="display:none">
+      <div class="summary-head">🧾 訂單摘要</div>
+      <div class="summary-body">
+
+        <!-- 優惠碼 -->
+        <div>
+          <div class="coupon-wrap">
+            <input type="text" class="coupon-input" id="couponInput" placeholder="輸入優惠碼" maxlength="20">
+            <button class="coupon-btn" onclick="applyCoupon()">套用</button>
+          </div>
+          <div class="coupon-status" id="couponStatus"></div>
+        </div>
+
+        <!-- 運費 -->
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;color:var(--text-light);margin-bottom:0.6rem">運送方式</div>
+          <div class="shipping-opts">
+            <label class="shipping-opt">
+              <div class="shipping-opt-left">
+                <input type="radio" name="shipping" value="home" checked onchange="updateSummary()">
+                <div>
+                  <span class="shipping-opt-label">宅配到府（黑貓/新竹）</span>
+                  <span class="shipping-opt-sub">1–3 個工作天到貨</span>
+                </div>
+              </div>
+              <span class="shipping-opt-price" id="homeShippingPrice">NT$ 100</span>
+            </label>
+            <label class="shipping-opt">
+              <div class="shipping-opt-left">
+                <input type="radio" name="shipping" value="711" onchange="updateSummary()">
+                <div>
+                  <span class="shipping-opt-label">7-11 超商取貨</span>
+                  <span class="shipping-opt-sub">貨到門市簡訊通知</span>
+                </div>
+              </div>
+              <span class="shipping-opt-price" id="cvs711Price">NT$ 60</span>
+            </label>
+            <label class="shipping-opt">
+              <div class="shipping-opt-left">
+                <input type="radio" name="shipping" value="family" onchange="updateSummary()">
+                <div>
+                  <span class="shipping-opt-label">全家超商取貨</span>
+                  <span class="shipping-opt-sub">貨到門市簡訊通知</span>
+                </div>
+              </div>
+              <span class="shipping-opt-price" id="cvsFamilyPrice">NT$ 60</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 免運進度 -->
+        <div id="freeShippingWrap">
+          <div class="free-shipping-bar">
+            <div class="free-shipping-fill" id="freeShippingFill" style="width:0%"></div>
+          </div>
+          <div class="free-shipping-hint" id="freeShippingHint"></div>
+        </div>
+
+        <div class="summary-divider"></div>
+
+        <!-- 金額明細 -->
+        <div class="summary-row">
+          <span class="summary-label">商品小計</span>
+          <span class="summary-val" id="subtotalVal">NT$ 0</span>
+        </div>
+        <div class="summary-row" id="discountRow" style="display:none">
+          <span class="summary-label">優惠折扣</span>
+          <span class="summary-val discount" id="discountVal">- NT$ 0</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">運費</span>
+          <span class="summary-val" id="shippingVal">NT$ 100</span>
+        </div>
+
+        <div class="summary-divider"></div>
+
+        <div class="summary-total">
+          <span class="total-label">應付總額</span>
+          <span class="total-val" id="totalVal">NT$ 0</span>
+        </div>
+        <div class="total-hint">含稅，運費另計</div>
+
+        <!-- 結帳按鈕 -->
+        <button class="checkout-btn" id="checkoutBtn" onclick="goCheckout()">
+          <span>前往結帳 →</span>
+        </button>
+
+        <!-- 付款方式提示 -->
+        <div class="payment-hints">
+          <span>💳 信用卡</span>
+          <span>🏧 ATM 轉帳</span>
+          <span>🏪 超商繳費</span>
+          <span>🔒 SSL 加密</span>
+        </div>
+
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- 頁尾 -->
+<footer>
+  <p>© 2025 芳萃本草 Botanical Essence. All rights reserved.</p>
+  <div style="display:flex;gap:1.5rem">
+    <a href="return.html">退換貨政策</a>
+    <a href="faq.html">常見問題</a>
+    <a href="contact.html">聯絡我們</a>
+  </div>
+</footer>
+
+<script>
+  // ===== 設定 =====
+  const FREE_SHIPPING_THRESHOLD = 1500; // 滿額免運
+  const SHIPPING_FEES = { home: 100, '711': 60, family: 60 };
+
+  // 優惠碼（上線後改由 Firebase 驗證）
+  const COUPONS = {
+    'WELCOME10': { type: 'percent', value: 10, label: '新會員 9 折優惠' },
+    'AROMA100':  { type: 'fixed',   value: 100, label: '折抵 NT$ 100' },
+    'FREE':      { type: 'shipping', label: '免運費' },
+  };
+
+  let cart = JSON.parse(localStorage.getItem('aromaCart') || '[]');
+  let appliedCoupon = null;
+
+  // ===== 初始化 =====
+  renderCart();
+
+  function renderCart() {
+    const container = document.getElementById('cartItems');
+    container.innerHTML = '';
+
+    if (cart.length === 0) {
+      document.getElementById('emptyCart').style.display = 'flex';
+      document.getElementById('summaryBox').style.display = 'none';
+      document.getElementById('upsellSection').style.display = 'block';
+      document.getElementById('cartLayout').style.alignItems = 'start';
+      document.getElementById('itemCountLabel').textContent = '';
+      return;
+    }
+
+    document.getElementById('emptyCart').style.display = 'none';
+    document.getElementById('summaryBox').style.display = 'block';
+    document.getElementById('upsellSection').style.display = 'block';
+    document.getElementById('itemCountLabel').textContent = `（${cart.reduce((s,i)=>s+i.qty,0)} 件）`;
+
+    cart.forEach((item, idx) => {
+      const el = document.createElement('div');
+      el.className = 'cart-item';
+      el.id = `item-${idx}`;
+      el.style.animationDelay = (idx * 60) + 'ms';
+
+      const thumb = item.image
+        ? `<img src="${item.image}" alt="${item.name}" class="item-img" loading="lazy">`
+        : `<div class="item-img-placeholder">🌿</div>`;
+
+      el.innerHTML = `
+        ${thumb}
+        <div class="item-info">
+          <a href="product.html?id=${item.id}" class="item-name">${item.name}</a>
+          ${item.volume ? `<span class="item-volume">${item.volume}</span>` : ''}
+          <span class="item-unit-price">單價 NT$ ${(item.price||0).toLocaleString()}</span>
+        </div>
+        <div class="item-right">
+          <span class="item-subtotal">NT$ ${((item.price||0) * item.qty).toLocaleString()}</span>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty(${idx}, -1)">−</button>
+            <input type="number" class="qty-num" value="${item.qty}" min="1" max="99"
+              onchange="setQty(${idx}, this.value)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            <button class="qty-btn" onclick="changeQty(${idx}, 1)">＋</button>
+          </div>
+          <button class="remove-btn" onclick="removeItem(${idx})">✕ 移除</button>
+        </div>`;
+      container.appendChild(el);
+    });
+
+    updateSummary();
+    saveCart();
+  }
+
+  // ===== 數量操作 =====
+  function changeQty(idx, delta) {
+    cart[idx].qty = Math.max(1, cart[idx].qty + delta);
+    renderCart();
+  }
+
+  function setQty(idx, val) {
+    const n = parseInt(val) || 1;
+    cart[idx].qty = Math.max(1, Math.min(n, 99));
+    renderCart();
+  }
+
+  // ===== 移除 =====
+  function removeItem(idx) {
+    const el = document.getElementById(`item-${idx}`);
+    if (el) {
+      el.classList.add('removing');
+      setTimeout(() => {
+        cart.splice(idx, 1);
+        renderCart();
+      }, 280);
+    }
+  }
+
+  // ===== 清空 =====
+  window.clearCart = () => {
+    if (!cart.length) return;
+    if (!confirm('確定要清空購物車嗎？')) return;
+    cart = [];
+    renderCart();
+    showToast('購物車已清空');
+  };
+
+  // ===== 加購 =====
+  window.upsellAdd = (id, name, price, image) => {
+    const idx = cart.findIndex(i => i.id === id);
+    if (idx >= 0) cart[idx].qty++;
+    else cart.push({ id, name, price, image, qty: 1 });
+    renderCart();
+    showToast(`🛒 ${name} 已加入購物車`);
+  };
+
+  // ===== 優惠碼 =====
+  window.applyCoupon = () => {
+    const code = document.getElementById('couponInput').value.trim().toUpperCase();
+    const status = document.getElementById('couponStatus');
+    if (!code) { status.textContent = '請輸入優惠碼'; status.className = 'coupon-status coupon-fail'; return; }
+    if (COUPONS[code]) {
+      appliedCoupon = { code, ...COUPONS[code] };
+      status.textContent = `✓ 已套用「${appliedCoupon.label}」`;
+      status.className = 'coupon-status coupon-ok';
+      updateSummary();
+    } else {
+      appliedCoupon = null;
+      status.textContent = '優惠碼無效或已過期';
+      status.className = 'coupon-status coupon-fail';
+      updateSummary();
+    }
+  };
+
+  // Enter 鍵套用優惠碼
+  document.getElementById('couponInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyCoupon();
+  });
+
+  // ===== 更新摘要 =====
+  window.updateSummary = () => {
+    const subtotal = cart.reduce((s, i) => s + (i.price||0) * i.qty, 0);
+    const shippingMethod = document.querySelector('input[name="shipping"]:checked')?.value || 'home';
+    let shippingFee = SHIPPING_FEES[shippingMethod] || 100;
+
+    // 折扣計算
+    let discount = 0;
+    let freeShipping = false;
+    if (appliedCoupon) {
+      if (appliedCoupon.type === 'percent') discount = Math.round(subtotal * appliedCoupon.value / 100);
+      else if (appliedCoupon.type === 'fixed') discount = Math.min(appliedCoupon.value, subtotal);
+      else if (appliedCoupon.type === 'shipping') freeShipping = true;
+    }
+
+    // 滿額免運
+    if (subtotal >= FREE_SHIPPING_THRESHOLD) freeShipping = true;
+    if (freeShipping) shippingFee = 0;
+
+    // 更新運費顯示
+    Object.entries(SHIPPING_FEES).forEach(([k, v]) => {
+      const el = document.getElementById(k === 'home' ? 'homeShippingPrice' : k === '711' ? 'cvs711Price' : 'cvsFamilyPrice');
+      if (el) {
+        if (freeShipping) {
+          el.innerHTML = `<span class="free-tag">免運</span>`;
+        } else {
+          el.textContent = `NT$ ${v}`;
+        }
+      }
+    });
+
+    const total = Math.max(0, subtotal - discount + shippingFee);
+
+    document.getElementById('subtotalVal').textContent = `NT$ ${subtotal.toLocaleString()}`;
+    document.getElementById('shippingVal').innerHTML = freeShipping
+      ? `<span class="free-tag" style="font-size:.82rem">免運費</span>`
+      : `NT$ ${shippingFee}`;
+    document.getElementById('totalVal').textContent = `NT$ ${total.toLocaleString()}`;
+
+    // 折扣行
+    if (discount > 0) {
+      document.getElementById('discountRow').style.display = 'flex';
+      document.getElementById('discountVal').textContent = `- NT$ ${discount.toLocaleString()}`;
+    } else {
+      document.getElementById('discountRow').style.display = 'none';
+    }
+
+    // 免運進度條
+    const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+    const pct = Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100);
+    document.getElementById('freeShippingFill').style.width = pct + '%';
+
+    if (freeShipping || remaining === 0) {
+      document.getElementById('freeShippingHint').innerHTML = `🎉 已達免運門檻！`;
+    } else {
+      document.getElementById('freeShippingHint').innerHTML =
+        `再購 <span>NT$ ${remaining.toLocaleString()}</span> 即可享免運費`;
+    }
+  };
+
+  // ===== 前往結帳 =====
+  window.goCheckout = () => {
+    if (!cart.length) return;
+    const shippingMethod = document.querySelector('input[name="shipping"]:checked')?.value || 'home';
+    // 存入 sessionStorage 供結帳頁讀取
+    sessionStorage.setItem('checkoutShipping', shippingMethod);
+    sessionStorage.setItem('checkoutCoupon', appliedCoupon ? JSON.stringify(appliedCoupon) : '');
+    location.href = 'checkout.html';
+  };
+
+  // ===== 存儲 =====
+  function saveCart() {
+    localStorage.setItem('aromaCart', JSON.stringify(cart));
+    // 同步導覽列購物車數字
+    const total = cart.reduce((s, i) => s + i.qty, 0);
+    document.querySelectorAll('.cart-count').forEach(el => el.textContent = total);
+  }
+
+  // ===== Toast =====
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 2500);
+  }
+
+  // 導覽列滾動
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+  });
+</script>
+
+</body>
+</html>

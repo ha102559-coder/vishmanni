@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>訂單確認｜芳萃本草 Botanical Essence</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, doc, getDoc, onSnapshot }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs7XOKmhYd4faBrODmsz913Ipc0dSnSlI",
+      authDomain: "vishmanni-b2f15.firebaseapp.com",
+      projectId: "vishmanni-b2f15",
+      storageBucket: "vishmanni-b2f15.firebasestorage.app",
+      messagingSenderId: "575119169685",
+      appId: "1:575119169685:web:fab464167abec7839d239c",
+      measurementId: "G-SW7LQLVH2P"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const params = new URLSearchParams(location.search);
+    const orderId = params.get('id');
+    const isDev = params.get('dev') === '1';
+
+    if (!orderId) { location.href = 'index.html'; }
+
+    // ===== 載入訂單 =====
+    async function loadOrder() {
+      try {
+        const snap = await getDoc(doc(db, 'orders', orderId));
+        if (!snap.exists()) { showError(); return; }
+        renderOrder({ id: snap.id, ...snap.data() });
+
+        // 即時監聽訂單狀態變化
+        onSnapshot(doc(db, 'orders', orderId), (d) => {
+          if (d.exists()) updateStatus(d.data().status, d.data().payment?.status);
+        });
+      } catch (e) {
+        console.error(e);
+        showError();
+      }
+    }
+
+    function renderOrder(order) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('orderContent').style.display = 'block';
+
+      // 訂單編號（顯示前 8 碼）
+      const shortId = order.id.slice(0, 8).toUpperCase();
+      document.getElementById('orderId').textContent = `#${shortId}`;
+      document.getElementById('orderIdFull').textContent = order.id;
+
+      // 訂單日期
+      const date = order.createdAt?.toDate
+        ? order.createdAt.toDate().toLocaleString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+        : new Date().toLocaleString('zh-TW');
+      document.getElementById('orderDate').textContent = date;
+
+      // 付款/訂單狀態
+      updateStatus(order.status, order.payment?.status);
+
+      // 商品列表
+      const itemsEl = document.getElementById('orderItems');
+      itemsEl.innerHTML = '';
+      (order.items || []).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'order-item';
+        row.innerHTML = `
+          <div class="oi-thumb">
+            ${item.image ? `<img src="${item.image}" alt="${item.name}" loading="lazy">` : `<span>🌿</span>`}
+            <span class="oi-qty">${item.qty}</span>
+          </div>
+          <div class="oi-info">
+            <div class="oi-name">${item.name}</div>
+            ${item.volume ? `<div class="oi-vol">${item.volume}</div>` : ''}
+          </div>
+          <div class="oi-price">NT$ ${(item.price * item.qty).toLocaleString()}</div>`;
+        itemsEl.appendChild(row);
+      });
+
+      // 金額
+      document.getElementById('oSubtotal').textContent = `NT$ ${(order.subtotal||0).toLocaleString()}`;
+      document.getElementById('oShipping').innerHTML = order.shippingFee === 0
+        ? `<span style="color:var(--success)">免運費</span>`
+        : `NT$ ${(order.shippingFee||0).toLocaleString()}`;
+      document.getElementById('oTotal').textContent = `NT$ ${(order.total||0).toLocaleString()}`;
+
+      const discRow = document.getElementById('oDiscountRow');
+      if ((order.discount||0) > 0) {
+        discRow.style.display = 'flex';
+        document.getElementById('oDiscount').textContent = `- NT$ ${order.discount.toLocaleString()}`;
+      }
+
+      // 付款方式
+      const payLabels = { credit:'信用卡', atm:'ATM 轉帳', cvs:'超商繳費', linepay:'LINE Pay' };
+      document.getElementById('oPayment').textContent = payLabels[order.payment?.method] || order.payment?.method || '—';
+
+      // 收件資訊
+      document.getElementById('oReceiver').textContent = order.receiver?.name || '—';
+      document.getElementById('oPhone').textContent = order.receiver?.phone || '—';
+      document.getElementById('oEmail').textContent = order.receiver?.email || '—';
+
+      const shipLabels = { home:'宅配到府', '711':'7-11 超商取貨', family:'全家超商取貨' };
+      document.getElementById('oShipMethod').textContent = shipLabels[order.shipping?.method] || '—';
+      document.getElementById('oAddress').textContent = order.shipping?.address || '—';
+
+      if (order.shipping?.note) {
+        document.getElementById('oNoteRow').style.display = 'flex';
+        document.getElementById('oNote').textContent = order.shipping.note;
+      }
+
+      // 追蹤單號
+      const trackingRow = document.getElementById('oTrackingRow');
+      if (order.tracking?.number) {
+        const carrierNames = {
+          blackcat: '黑貓宅急便',
+          hct:      '新竹貨運',
+          '711':    '7-11 超商取貨',
+          family:   '全家超商取貨',
+        };
+        const carrierUrls = {
+          blackcat: `https://www.t-cat.com.tw/inquire/trace.aspx?no=${order.tracking.number}`,
+          hct:      `https://www.hct.com.tw/TrackingService.aspx?no=${order.tracking.number}`,
+          '711':    `https://eservice.7-11.com.tw/e-tracking/search.aspx?MOTION_NO=${order.tracking.number}`,
+          family:   `https://outline.famiport.com.tw/UI_bins/inqStatusResult.aspx?UID=${order.tracking.number}`,
+        };
+        document.getElementById('oTrackingCarrier').textContent =
+          carrierNames[order.tracking.carrier] || order.tracking.carrier || '';
+        document.getElementById('oTrackingNumber').textContent = order.tracking.number;
+        document.getElementById('oTrackingLink').href =
+          carrierUrls[order.tracking.carrier] || '#';
+        trackingRow.style.display = 'flex';
+      } else {
+        trackingRow.style.display = 'none';
+      }
+
+      // ATM 付款顯示虛擬帳號提示
+      if (order.payment?.method === 'atm') {
+        document.getElementById('atmNotice').style.display = 'block';
+        if (order.payment?.bankCode) {
+          document.getElementById('atmBank').textContent = order.payment.bankCode;
+          document.getElementById('atmAccount').textContent = order.payment.accountNumber;
+          document.getElementById('atmExpire').textContent = order.payment.expireDate || '付款後 3 天內';
+        }
+      }
+
+      // 優惠碼
+      if (order.coupon) {
+        document.getElementById('oCouponRow').style.display = 'flex';
+        document.getElementById('oCoupon').textContent = order.coupon;
+      }
+    }
+
+    // ===== 狀態更新 =====
+    const STATUS_MAP = {
+      pending:   { label:'待付款', color:'#E67E22', icon:'⏳', step: 0 },
+      paid:      { label:'已付款', color:'var(--success)', icon:'✅', step: 1 },
+      preparing: { label:'備貨中', color:'var(--sage-dark)', icon:'📦', step: 2 },
+      shipped:   { label:'已出貨', color:'var(--sage-dark)', icon:'🚚', step: 3 },
+      delivered: { label:'已送達', color:'var(--success)', icon:'🎉', step: 4 },
+      cancelled: { label:'已取消', color:'var(--danger)', icon:'✕', step: -1 },
+    };
+
+    function updateStatus(orderStatus, paymentStatus) {
+      const s = STATUS_MAP[orderStatus] || STATUS_MAP.pending;
+      const badge = document.getElementById('statusBadge');
+      badge.textContent = `${s.icon} ${s.label}`;
+      badge.style.background = s.color + '18';
+      badge.style.color = s.color;
+      badge.style.borderColor = s.color + '40';
+
+      // 進度條
+      const steps = document.querySelectorAll('.track-step');
+      steps.forEach((el, i) => {
+        el.classList.remove('done', 'active');
+        if (s.step > i) el.classList.add('done');
+        else if (s.step === i) el.classList.add('active');
+      });
+
+      const lines = document.querySelectorAll('.track-line');
+      lines.forEach((el, i) => {
+        el.classList.toggle('done', s.step > i + 1);
+        el.classList.toggle('active', s.step === i + 1);
+      });
+
+      // 待付款提示
+      if (orderStatus === 'pending') {
+        document.getElementById('pendingNotice').style.display = 'block';
+      } else {
+        document.getElementById('pendingNotice').style.display = 'none';
+      }
+    }
+
+    function showError() {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('errorState').style.display = 'flex';
+    }
+
+    // Dev 模式：用假資料示範
+    if (isDev) {
+      setTimeout(() => {
+        renderOrder({
+          id: orderId || 'DEVORDER001',
+          status: 'paid',
+          payment: { method: 'credit', status: 'paid' },
+          createdAt: { toDate: () => new Date() },
+          items: [
+            { name: '薰衣草精油', volume: '10ml', price: 680, qty: 2, image: '' },
+            { name: '茶樹精油', volume: '10ml', price: 580, qty: 1, image: '' },
+          ],
+          subtotal: 1940,
+          discount: 194,
+          shippingFee: 0,
+          total: 1746,
+          coupon: 'WELCOME10',
+          receiver: { name: '王小明', phone: '0912345678', email: 'test@email.com' },
+          shipping: { method: 'home', address: '台北市信義區忠孝東路五段1號', note: '請放置門口' },
+        });
+      }, 800);
+    } else {
+      loadOrder();
+    }
+  </script>
+
+  <style>
+    :root {
+      --cream: #F7F3EC;
+      --warm-white: #FDFAF5;
+      --sage: #7A8C6E;
+      --sage-dark: #4E5E45;
+      --sage-light: #B5C4A8;
+      --gold: #C4A35A;
+      --gold-light: #DFC07A;
+      --bark: #6B4F3A;
+      --text: #2C2416;
+      --text-mid: #5C4E38;
+      --text-light: #9A8E7D;
+      --border: rgba(196,163,90,0.22);
+      --danger: #C0392B;
+      --success: #27AE60;
+      --radius: 3px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 15px; }
+    body {
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 300;
+      background: var(--warm-white);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+
+    /* ===== 導覽 ===== */
+    nav {
+      height: 64px; padding: 0 5vw;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(253,250,245,0.96); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { text-decoration: none; line-height: 1.1; }
+    .logo .cn { font-size: 1.15rem; font-weight: 600; color: var(--sage-dark); letter-spacing: 0.12em; }
+    .logo .en { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.7rem; color: var(--gold); letter-spacing: 0.2em; }
+
+    /* ===== 步驟列 ===== */
+    .steps {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; padding: 1.2rem 5vw;
+      background: var(--cream); border-bottom: 1px solid var(--border);
+    }
+    .step { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.68rem; font-weight: 600;
+      border: 1.5px solid var(--border); color: var(--text-light);
+    }
+    .step.done .step-num { background: var(--sage-light); color: var(--sage-dark); border-color: var(--sage-light); }
+    .step.active .step-num { background: var(--sage-dark); color: white; border-color: var(--sage-dark); }
+    .step.active .step-label { color: var(--sage-dark); font-weight: 600; }
+    .step-label { color: var(--text-light); letter-spacing: 0.05em; }
+    .step-line { width: 50px; height: 1px; background: var(--border); margin: 0 0.6rem; flex-shrink: 0; }
+    @media (max-width: 480px) { .step-line { width: 24px; } .step-label { display: none; } }
+
+    /* ===== 載入 ===== */
+    #loadingState {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 60vh; gap: 1rem;
+    }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--sage); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loadingState p { font-size: 0.82rem; color: var(--text-light); letter-spacing: 0.08em; }
+
+    /* ===== 錯誤 ===== */
+    #errorState {
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 60vh; text-align: center; gap: 1rem; padding: 2rem;
+    }
+    #errorState .err-icon { font-size: 3rem; opacity: 0.3; }
+    #errorState p { font-size: 0.88rem; color: var(--text-light); }
+    #errorState a { color: var(--sage); text-decoration: none; font-size: 0.85rem; }
+
+    /* ===== 主體 ===== */
+    #orderContent { display: none; flex: 1; }
+
+    /* ===== 成功橫幅 ===== */
+    .success-banner {
+      background: linear-gradient(135deg, var(--sage-dark) 0%, #3d5236 100%);
+      padding: 3rem 5vw 3.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .success-banner::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'%3E%3Ccircle cx='30' cy='30' r='25'/%3E%3Ccircle cx='30' cy='30' r='15'/%3E%3C/g%3E%3C/svg%3E") repeat;
+      pointer-events: none;
+    }
+    .success-icon {
+      width: 72px; height: 72px; margin: 0 auto 1.2rem;
+      background: rgba(255,255,255,0.12);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem;
+      animation: popIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+      position: relative; z-index: 1;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .success-title {
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 600; color: white;
+      letter-spacing: 0.1em; margin-bottom: 0.5rem;
+      position: relative; z-index: 1;
+      animation: fadeUp 0.6s 0.2s both;
+    }
+    .success-sub {
+      font-size: 0.88rem; color: rgba(255,255,255,0.65);
+      letter-spacing: 0.06em;
+      position: relative; z-index: 1;
+      animation: fadeUp 0.6s 0.35s both;
+    }
+    .order-id-display {
+      display: inline-flex; align-items: center; gap: 0.6rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 50px; padding: 0.5rem 1.2rem;
+      margin-top: 1.2rem; font-size: 0.82rem; color: rgba(255,255,255,0.85);
+      letter-spacing: 0.1em;
+      position: relative; z-index: 1;
+      animation: fadeUp 0.6s 0.5s both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== 主體佈局 ===== */
+    .order-layout {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 2.5rem auto 4rem;
+      padding: 0 5vw;
+      align-items: start;
+    }
+
+    /* ===== 卡片 ===== */
+    .info-card {
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      animation: fadeUp 0.5s both;
+    }
+    .info-card:nth-child(1) { animation-delay: 0.1s; }
+    .info-card:nth-child(2) { animation-delay: 0.2s; }
+    .info-card:nth-child(3) { animation-delay: 0.3s; }
+
+    .card-head {
+      padding: 0.85rem 1.3rem;
+      background: rgba(196,163,90,0.06);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem; font-weight: 600;
+      letter-spacing: 0.1em; color: var(--sage-dark);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .card-body { padding: 1.3rem; }
+
+    /* ===== 物流進度條 ===== */
+    .track-row {
+      display: flex; align-items: flex-start;
+      justify-content: space-between;
+      position: relative; padding: 0.5rem 0;
+    }
+
+    .track-step {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0.5rem; flex: 1;
+      position: relative; z-index: 1;
+    }
+    .track-dot {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      background: var(--cream); border: 2px solid var(--border);
+      color: var(--text-light); transition: all 0.4s;
+    }
+    .track-step.done .track-dot { background: var(--sage-light); border-color: var(--sage-light); color: var(--sage-dark); }
+    .track-step.active .track-dot { background: var(--sage-dark); border-color: var(--sage-dark); color: white; box-shadow: 0 0 0 4px rgba(78,94,69,0.15); }
+    .track-label { font-size: 0.68rem; color: var(--text-light); letter-spacing: 0.06em; text-align: center; line-height: 1.3; }
+    .track-step.done .track-label, .track-step.active .track-label { color: var(--sage-dark); font-weight: 600; }
+
+    .track-line {
+      flex: 1; height: 2px; background: var(--border);
+      margin-top: 18px; /* 對齊圓點中心 */
+      transition: background 0.4s;
+      position: relative; z-index: 0;
+    }
+    .track-line.done { background: var(--sage-light); }
+    .track-line.active {
+      background: linear-gradient(90deg, var(--sage-light), var(--border));
+    }
+
+    /* 狀態徽章 */
+    #statusBadge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.35rem 0.9rem; border-radius: 50px;
+      font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
+      border: 1px solid; margin-bottom: 1.2rem;
+    }
+
+    /* ===== 待付款 / ATM 提示 ===== */
+    .notice-box {
+      background: rgba(230,126,34,0.07);
+      border: 1px solid rgba(230,126,34,0.25);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .notice-box.atm { background: rgba(78,94,69,0.06); border-color: rgba(78,94,69,0.2); }
+    .notice-title { font-size: 0.82rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+    .notice-body { font-size: 0.8rem; color: var(--text-mid); line-height: 1.8; }
+    .notice-body strong { color: var(--sage-dark); }
+    .atm-info { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 0.8rem; }
+    .atm-field { background: var(--cream); border: 1px solid var(--border); padding: 0.6rem 0.9rem; border-radius: var(--radius); }
+    .atm-field .af-label { font-size: 0.68rem; color: var(--text-light); letter-spacing: 0.08em; }
+    .atm-field .af-val { font-size: 1rem; font-weight: 600; color: var(--text); font-family: 'Cormorant Garamond', serif; letter-spacing: 0.05em; }
+
+    /* ===== 商品列表 ===== */
+    #orderItems { display: flex; flex-direction: column; gap: 0.8rem; }
+    .order-item {
+      display: flex; align-items: center; gap: 0.9rem;
+      padding: 0.8rem 0;
+      border-bottom: 1px solid rgba(196,163,90,0.1);
+    }
+    .order-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .oi-thumb {
+      width: 52px; height: 52px; flex-shrink: 0;
+      border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--cream); position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .oi-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .oi-thumb span { font-size: 1.4rem; opacity: 0.4; }
+    .oi-qty {
+      position: absolute; top: -5px; right: -5px;
+      background: var(--sage-dark); color: white;
+      font-size: 0.6rem; width: 16px; height: 16px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-weight: 600;
+    }
+    .oi-info { flex: 1; }
+    .oi-name { font-size: 0.88rem; font-weight: 600; color: var(--text); letter-spacing: 0.04em; }
+    .oi-vol { font-size: 0.72rem; color: var(--text-light); margin-top: 0.1rem; }
+    .oi-price { font-size: 0.92rem; font-weight: 600; color: var(--bark); font-family: 'Cormorant Garamond', serif; white-space: nowrap; }
+
+    /* ===== 金額欄 ===== */
+    .amounts { display: flex; flex-direction: column; gap: 0.55rem; padding-top: 1rem; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+    .amount-row { display: flex; justify-content: space-between; }
+    .amount-label { font-size: 0.8rem; color: var(--text-mid); }
+    .amount-val { font-size: 0.82rem; color: var(--text); }
+    .amount-val.green { color: var(--success); }
+    .total-row { display: flex; justify-content: space-between; align-items: baseline; padding-top: 0.7rem; border-top: 1px solid var(--border); margin-top: 0.3rem; }
+    .total-label { font-size: 0.88rem; font-weight: 600; }
+    .total-val { font-size: 1.5rem; font-weight: 700; color: var(--bark); font-family: 'Cormorant Garamond', serif; }
+
+    /* ===== 配送資訊 ===== */
+    .info-grid { display: flex; flex-direction: column; gap: 0.7rem; }
+    .info-row { display: flex; gap: 0.8rem; }
+    .info-row-label { font-size: 0.75rem; color: var(--text-light); letter-spacing: 0.08em; min-width: 72px; padding-top: 0.05rem; }
+    .info-row-val { font-size: 0.85rem; color: var(--text-mid); line-height: 1.5; flex: 1; }
+    .info-row-val strong { color: var(--text); }
+
+    /* ===== 右欄：行動按鈕 ===== */
+    .action-col { display: flex; flex-direction: column; gap: 1.2rem; position: sticky; top: 84px; }
+
+    .action-card {
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      animation: fadeUp 0.5s 0.3s both;
+    }
+    .action-card .card-head { background: rgba(196,163,90,0.06); }
+
+    .action-body { padding: 1.2rem; display: flex; flex-direction: column; gap: 0.7rem; }
+
+    .action-btn {
+      display: block; width: 100%; padding: 0.8rem;
+      text-align: center; text-decoration: none;
+      font-family: 'Noto Serif TC', serif; font-size: 0.85rem;
+      letter-spacing: 0.08em; border-radius: var(--radius);
+      transition: all 0.3s; cursor: pointer; border: none;
+    }
+    .btn-primary { background: var(--sage-dark); color: white; }
+    .btn-primary:hover { background: var(--sage); }
+    .btn-outline { background: transparent; color: var(--text-mid); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: var(--sage); color: var(--sage-dark); }
+
+    /* 訂單編號複製 */
+    .copy-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--cream); border: 1px solid var(--border);
+      padding: 0.5rem 0.8rem; border-radius: var(--radius);
+      font-size: 0.72rem; color: var(--text-light);
+    }
+    .copy-id { flex: 1; font-family: monospace; font-size: 0.7rem; color: var(--text-mid); word-break: break-all; }
+    .copy-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 0.72rem; color: var(--sage); letter-spacing: 0.04em;
+      padding: 0; white-space: nowrap; transition: color 0.2s;
+    }
+    .copy-btn:hover { color: var(--sage-dark); }
+
+    /* ===== 後續推薦 ===== */
+    .recommend-section {
+      max-width: 1000px; margin: 0 auto 4rem; padding: 0 5vw;
+    }
+    .section-tag { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.88rem; color: var(--gold); letter-spacing: 0.2em; display: block; margin-bottom: 0.4rem; }
+    .recommend-section h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.08em; margin-bottom: 1.5rem; }
+    .recommend-links { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
+    .rec-card {
+      background: var(--cream); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.4rem 1.2rem;
+      text-decoration: none; color: inherit;
+      display: flex; flex-direction: column; gap: 0.4rem;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .rec-card:hover { transform: translateY(-4px); box-shadow: 0 10px 28px rgba(44,36,22,0.08); }
+    .rec-icon { font-size: 1.8rem; margin-bottom: 0.3rem; }
+    .rec-title { font-size: 0.9rem; font-weight: 600; color: var(--text); letter-spacing: 0.04em; }
+    .rec-desc { font-size: 0.75rem; color: var(--text-light); line-height: 1.5; }
+    .rec-arrow { font-size: 0.75rem; color: var(--sage); margin-top: 0.4rem; }
+
+    /* ===== 頁尾 ===== */
+    footer {
+      background: var(--text); padding: 2rem 6vw;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem; margin-top: auto;
+    }
+    footer p { font-size: 0.72rem; color: rgba(255,255,255,0.3); letter-spacing: 0.05em; }
+    footer a { font-size: 0.72rem; color: rgba(255,255,255,0.35); text-decoration: none; }
+    footer a:hover { color: var(--gold-light); }
+
+    /* ===== Toast ===== */
+    .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--sage-dark); color: white; padding: 0.85rem 1.4rem; font-family: 'Noto Serif TC', serif; font-size: 0.85rem; letter-spacing: 0.05em; border-radius: var(--radius); box-shadow: 0 8px 30px rgba(0,0,0,0.15); z-index: 9999; opacity: 0; transform: translateY(8px); transition: all 0.35s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ===== RWD ===== */
+    @media (max-width: 760px) {
+      .order-layout { grid-template-columns: 1fr; }
+      .action-col { position: static; order: -1; }
+      .recommend-links { grid-template-columns: 1fr; }
+      .atm-info { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 480px) {
+      .track-label { font-size: 0.6rem; }
+      .track-dot { width: 30px; height: 30px; font-size: 0.85rem; }
+      .track-line { margin-top: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 導覽 -->
+<nav>
+  <a href="index.html" class="logo">
+    <div class="cn">芳萃本草</div>
+    <div class="en">Botanical Essence</div>
+  </a>
+  <a href="index.html" style="font-size:0.8rem;color:var(--sage);text-decoration:none;letter-spacing:0.06em">回首頁</a>
+</nav>
+
+<!-- 步驟列 -->
+<div class="steps">
+  <div class="step done"><div class="step-num">✓</div><span class="step-label">購物車</span></div>
+  <div class="step-line"></div>
+  <div class="step done"><div class="step-num">✓</div><span class="step-label">填寫資料</span></div>
+  <div class="step-line"></div>
+  <div class="step done"><div class="step-num">✓</div><span class="step-label">付款</span></div>
+  <div class="step-line"></div>
+  <div class="step active"><div class="step-num">4</div><span class="step-label">完成訂單</span></div>
+</div>
+
+<!-- 載入中 -->
+<div id="loadingState">
+  <div class="spinner"></div>
+  <p>訂單資料載入中…</p>
+</div>
+
+<!-- 錯誤 -->
+<div id="errorState">
+  <div class="err-icon">⚠️</div>
+  <p>找不到此訂單，請確認網址是否正確</p>
+  <a href="index.html">← 回首頁</a>
+</div>
+
+<!-- ===== 訂單內容 ===== -->
+<div id="orderContent">
+
+  <!-- 成功橫幅 -->
+  <div class="success-banner">
+    <div class="success-icon">🌿</div>
+    <div class="success-title">感謝您的訂購！</div>
+    <div class="success-sub">訂單確認信已寄送至您的 Email，請注意查收</div>
+    <div class="order-id-display">
+      訂單編號 <strong id="orderId">#--------</strong>
+    </div>
+  </div>
+
+  <!-- 主體 -->
+  <div class="order-layout">
+
+    <!-- 左欄 -->
+    <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+      <!-- 物流追蹤 -->
+      <div class="info-card">
+        <div class="card-head">🚚 訂單狀態</div>
+        <div class="card-body">
+
+          <div id="statusBadge">⏳ 待付款</div>
+
+          <!-- 待付款提示 -->
+          <div class="notice-box" id="pendingNotice" style="display:none">
+            <div class="notice-title">⏳ 等待付款確認</div>
+            <div class="notice-body">
+              您的訂單尚未完成付款。若您選擇 ATM 轉帳或超商繳費，請於期限內完成付款，
+              系統確認後將自動更新訂單狀態並寄送通知信。
+            </div>
+          </div>
+
+          <!-- ATM 付款資訊 -->
+          <div class="notice-box atm" id="atmNotice" style="display:none">
+            <div class="notice-title">🏧 ATM 轉帳資訊</div>
+            <div class="notice-body">請於期限前完成轉帳，轉帳後無需通知，系統將自動確認。</div>
+            <div class="atm-info">
+              <div class="atm-field">
+                <div class="af-label">銀行代碼</div>
+                <div class="af-val" id="atmBank">—</div>
+              </div>
+              <div class="atm-field">
+                <div class="af-label">轉帳帳號</div>
+                <div class="af-val" id="atmAccount">—</div>
+              </div>
+              <div class="atm-field" style="grid-column:1/-1">
+                <div class="af-label">繳費期限</div>
+                <div class="af-val" id="atmExpire">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 進度條 -->
+          <div class="track-row">
+            <div class="track-step done">
+              <div class="track-dot">📋</div>
+              <div class="track-label">訂單建立</div>
+            </div>
+            <div class="track-line"></div>
+            <div class="track-step" id="ts-paid">
+              <div class="track-dot">💳</div>
+              <div class="track-label">付款完成</div>
+            </div>
+            <div class="track-line"></div>
+            <div class="track-step" id="ts-preparing">
+              <div class="track-dot">📦</div>
+              <div class="track-label">備貨中</div>
+            </div>
+            <div class="track-line"></div>
+            <div class="track-step" id="ts-shipped">
+              <div class="track-dot">🚚</div>
+              <div class="track-label">已出貨</div>
+            </div>
+            <div class="track-line"></div>
+            <div class="track-step" id="ts-delivered">
+              <div class="track-dot">🎉</div>
+              <div class="track-label">已送達</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 商品明細 -->
+      <div class="info-card">
+        <div class="card-head">🛒 商品明細</div>
+        <div class="card-body">
+          <div id="orderItems"></div>
+          <div class="amounts">
+            <div class="amount-row">
+              <span class="amount-label">商品小計</span>
+              <span class="amount-val" id="oSubtotal">—</span>
+            </div>
+            <div class="amount-row" id="oDiscountRow" style="display:none">
+              <span class="amount-label">優惠折扣</span>
+              <span class="amount-val green" id="oDiscount">—</span>
+            </div>
+            <div class="amount-row" id="oCouponRow" style="display:none">
+              <span class="amount-label">優惠碼</span>
+              <span class="amount-val" style="color:var(--sage-dark);font-size:0.75rem" id="oCoupon">—</span>
+            </div>
+            <div class="amount-row">
+              <span class="amount-label">運費</span>
+              <span class="amount-val" id="oShipping">—</span>
+            </div>
+            <div class="total-row">
+              <span class="total-label">實付總額</span>
+              <span class="total-val" id="oTotal">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 配送資訊 -->
+      <div class="info-card">
+        <div class="card-head">📍 配送資訊</div>
+        <div class="card-body">
+          <div class="info-grid">
+            <div class="info-row">
+              <span class="info-row-label">收件人</span>
+              <span class="info-row-val"><strong id="oReceiver">—</strong></span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">手機</span>
+              <span class="info-row-val" id="oPhone">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">Email</span>
+              <span class="info-row-val" id="oEmail">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">運送方式</span>
+              <span class="info-row-val" id="oShipMethod">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">地址/門市</span>
+              <span class="info-row-val" id="oAddress">—</span>
+            </div>
+            <div class="info-row" id="oNoteRow" style="display:none">
+              <span class="info-row-label">備註</span>
+              <span class="info-row-val" id="oNote">—</span>
+            </div>
+            <div class="info-row" id="oTrackingRow" style="display:none">
+              <span class="info-row-label">追蹤單號</span>
+              <div style="flex:1">
+                <span class="info-row-val" id="oTrackingCarrier"></span>
+                <a id="oTrackingLink" href="#" target="_blank" rel="noopener"
+                   style="display:inline-block;margin-top:4px;font-size:0.85rem;
+                          color:var(--sage);text-decoration:none;letter-spacing:0.04em">
+                  <strong id="oTrackingNumber"></strong> → 查詢包裹
+                </a>
+              </div>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">付款方式</span>
+              <span class="info-row-val" id="oPayment">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-row-label">訂單時間</span>
+              <span class="info-row-val" id="orderDate">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 右欄：行動 -->
+    <div class="action-col">
+
+      <!-- 訂單號碼 -->
+      <div class="action-card">
+        <div class="card-head">📋 訂單編號</div>
+        <div class="action-body">
+          <div class="copy-row">
+            <span class="copy-id" id="orderIdFull">—</span>
+            <button class="copy-btn" onclick="copyOrderId()">複製</button>
+          </div>
+          <p style="font-size:0.72rem;color:var(--text-light);line-height:1.6">
+            查詢訂單狀態請保存此編號，或登入會員中心查看歷史訂單
+          </p>
+        </div>
+      </div>
+
+      <!-- 行動按鈕 -->
+      <div class="action-card">
+        <div class="card-head">🌿 接下來</div>
+        <div class="action-body">
+          <a href="account.html" class="action-btn btn-primary">查看我的訂單</a>
+          <a href="products.html" class="action-btn btn-outline">繼續購物</a>
+          <a href="index.html" class="action-btn btn-outline">回到首頁</a>
+        </div>
+      </div>
+
+      <!-- 客服資訊 -->
+      <div class="action-card">
+        <div class="card-head">💬 需要協助？</div>
+        <div class="action-body">
+          <p style="font-size:0.78rem;color:var(--text-mid);line-height:1.7">
+            若有任何問題，歡迎聯絡我們的客服團隊，我們將盡快為您處理。
+          </p>
+          <a href="contact.html" class="action-btn btn-outline" style="margin-top:0.3rem">聯絡客服</a>
+          <div style="font-size:0.72rem;color:var(--text-light);text-align:center">
+            服務時間：週一至週五 09:00–18:00
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 推薦 -->
+  <div class="recommend-section">
+    <span class="section-tag">What's Next</span>
+    <h2>您可能感興趣</h2>
+    <div class="recommend-links">
+      <a href="products.html?cat=single" class="rec-card">
+        <div class="rec-icon">🌿</div>
+        <div class="rec-title">單方精油系列</div>
+        <div class="rec-desc">薰衣草、茶樹、薄荷、尤加利…多種天然精油任您選擇</div>
+        <div class="rec-arrow">探索 →</div>
+      </a>
+      <a href="products.html?cat=set" class="rec-card">
+        <div class="rec-icon">🎁</div>
+        <div class="rec-title">禮盒套組</div>
+        <div class="rec-desc">精心搭配的芳療禮盒，送禮自用兩相宜，附精美包裝</div>
+        <div class="rec-arrow">探索 →</div>
+      </a>
+      <a href="products.html?cat=diffuser" class="rec-card">
+        <div class="rec-icon">💨</div>
+        <div class="rec-title">擴香用品</div>
+        <div class="rec-desc">超音波擴香儀、水氧機、薰香石，讓香氣瀰漫整個空間</div>
+        <div class="rec-arrow">探索 →</div>
+      </a>
+    </div>
+  </div>
+
+</div><!-- /orderContent -->
+
+<!-- 頁尾 -->
+<footer>
+  <p>© 2025 芳萃本草 Botanical Essence. All rights reserved.</p>
+  <div style="display:flex;gap:1.5rem">
+    <a href="faq.html">常見問題</a>
+    <a href="return.html">退換貨政策</a>
+    <a href="contact.html">聯絡我們</a>
+  </div>
+</footer>
+
+<script>
+  // 複製訂單編號
+  function copyOrderId() {
+    const id = document.getElementById('orderIdFull').textContent;
+    navigator.clipboard.writeText(id).then(() => showToast('✓ 訂單編號已複製'));
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 2500);
+  }
+</script>
+
+</body>
+</html>
