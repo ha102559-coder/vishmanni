@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的訂單｜芳萃本草 Botanical Essence</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --ink:          #1a1510;
+      --ink-soft:     #3d3326;
+      --ink-muted:    #7a6e60;
+      --parchment:    #f5f0e8;
+      --parchment2:   #ede8dd;
+      --cream:        #faf7f2;
+      --sage:         #6b7c60;
+      --sage-deep:    #3e4e35;
+      --sage-pale:    #c2cfb8;
+      --amber:        #b8924a;
+      --amber-warm:   #d4a85e;
+      --amber-pale:   #edddb8;
+      --terracotta:   #8c5e45;
+      --success:      #4a7c59;
+      --danger:       #b04a4a;
+      --border-fine:  rgba(184,146,74,0.2);
+      --border-mid:   rgba(184,146,74,0.35);
+      --shadow-warm:  rgba(26,21,16,0.08);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    body {
+      background: var(--cream);
+      color: var(--ink);
+      font-family: 'Noto Serif TC', serif;
+      font-weight: 300;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.6;
+    }
+
+    /* ===== Navbar ===== */
+    #navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      height: 76px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 clamp(1.5rem, 5vw, 4rem);
+      background: rgba(250,247,242,0.92);
+      backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border-fine);
+      transition: height 0.4s, box-shadow 0.4s;
+    }
+    #navbar.scrolled { height: 62px; box-shadow: 0 2px 40px var(--shadow-warm); }
+
+    .logo { display: flex; flex-direction: column; line-height: 1; text-decoration: none; gap: 3px; }
+    .logo-cn { font-size: 1.2rem; font-weight: 600; color: var(--sage-deep); letter-spacing: 0.18em; }
+    .logo-en { font-family: 'Cormorant Garamond', serif; font-size: 0.68rem; font-weight: 300; font-style: italic; color: var(--amber); letter-spacing: 0.3em; }
+
+    .nav-back {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.78rem; letter-spacing: 0.08em;
+      color: var(--ink-muted); text-decoration: none;
+      transition: color 0.3s;
+    }
+    .nav-back:hover { color: var(--sage-deep); }
+    .nav-back svg { width: 14px; height: 14px; stroke: currentColor; fill: none; flex-shrink: 0; }
+
+    /* ===== Page Header ===== */
+    .page-header {
+      padding-top: calc(76px + 4rem);
+      padding-bottom: 3rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .page-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.75rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.75rem; font-style: italic;
+      letter-spacing: 0.3em; color: var(--amber);
+      margin-bottom: 1rem;
+    }
+    .page-eyebrow::before, .page-eyebrow::after {
+      content: ''; display: block;
+      width: 28px; height: 1px;
+      background: var(--amber-warm); opacity: 0.6;
+    }
+
+    .page-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 300; letter-spacing: 0.1em;
+      color: var(--ink-soft); line-height: 1.2;
+    }
+    .page-title em {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; color: var(--sage-deep);
+      font-weight: 400;
+    }
+
+    .page-sub {
+      margin-top: 0.75rem;
+      font-size: 0.85rem; color: var(--ink-muted);
+      letter-spacing: 0.05em; line-height: 1.8;
+    }
+
+    /* ===== Main Layout ===== */
+    .main-wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 clamp(1rem, 4vw, 2rem) 6rem;
+    }
+
+    /* ===== Search Card ===== */
+    .search-card {
+      background: white;
+      border: 1px solid var(--border-fine);
+      border-radius: 4px;
+      padding: 2.5rem 3rem;
+      box-shadow: 0 4px 40px var(--shadow-warm);
+      margin-bottom: 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .search-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--sage-pale), var(--amber-warm), var(--sage-pale));
+    }
+
+    .search-card h2 {
+      font-size: 1rem; font-weight: 500;
+      letter-spacing: 0.12em; color: var(--sage-deep);
+      margin-bottom: 1.75rem;
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+
+    .input-group {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .input-wrap { display: flex; flex-direction: column; gap: 0.4rem; }
+    .input-label {
+      font-size: 0.72rem; letter-spacing: 0.12em;
+      color: var(--ink-muted); text-transform: uppercase;
+    }
+
+    .text-input {
+      width: 100%;
+      border: 1px solid var(--border-mid);
+      border-radius: 2px;
+      padding: 0.7rem 1rem;
+      font-family: 'Noto Serif TC', serif;
+      font-size: 0.85rem; color: var(--ink);
+      background: var(--cream);
+      transition: border-color 0.3s, box-shadow 0.3s;
+      outline: none;
+      letter-spacing: 0.04em;
+    }
+    .text-input:focus {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 3px rgba(107,124,96,0.12);
+    }
+    .text-input::placeholder { color: var(--ink-muted); opacity: 0.5; }
+
+    .divider-or {
+      display: flex; align-items: center; gap: 1rem;
+      margin: 1.5rem 0;
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic; color: var(--amber);
+      font-size: 0.9rem; letter-spacing: 0.2em;
+    }
+    .divider-or::before, .divider-or::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border-fine);
+    }
+
+    .order-id-wrap {
+      display: flex; gap: 0.75rem;
+    }
+    .order-id-wrap .text-input { flex: 1; font-family: monospace; font-size: 0.82rem; }
+
+    .search-btn {
+      background: var(--sage-deep); color: var(--cream);
+      border: none; border-radius: 2px;
+      padding: 0.7rem 1.75rem;
+      font-family: 'Noto Serif TC', serif;
+      font-size: 0.82rem; letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+      white-space: nowrap;
+    }
+    .search-btn:hover { background: var(--sage); transform: translateY(-1px); }
+    .search-btn:active { transform: translateY(0); }
+
+    .search-hint {
+      font-size: 0.72rem; color: var(--ink-muted);
+      letter-spacing: 0.04em; line-height: 1.7;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-fine);
+    }
+
+    /* ===== Results ===== */
+    #resultsSection { display: none; }
+
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .results-title {
+      font-size: 0.82rem; font-weight: 500;
+      letter-spacing: 0.1em; color: var(--sage-deep);
+    }
+    .results-count {
+      font-size: 0.72rem; color: var(--ink-muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* ===== Order Card ===== */
+    .order-card {
+      background: white;
+      border: 1px solid var(--border-fine);
+      border-radius: 4px;
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+      box-shadow: 0 2px 20px var(--shadow-warm);
+      transition: box-shadow 0.3s, transform 0.3s;
+      animation: slideUp 0.35s cubic-bezier(0.4,0,0.2,1) both;
+    }
+    .order-card:hover {
+      box-shadow: 0 6px 40px rgba(26,21,16,0.12);
+      transform: translateY(-2px);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .order-card-head {
+      padding: 1.25rem 1.5rem;
+      background: var(--parchment);
+      border-bottom: 1px solid var(--border-fine);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+    }
+
+    .order-meta { display: flex; flex-direction: column; gap: 0.25rem; }
+    .order-id-display {
+      font-family: monospace; font-size: 0.8rem;
+      color: var(--ink-soft); letter-spacing: 0.06em;
+    }
+    .order-date { font-size: 0.72rem; color: var(--ink-muted); letter-spacing: 0.04em; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.3rem 0.85rem;
+      border-radius: 20px; border: 1px solid;
+      font-size: 0.72rem; letter-spacing: 0.08em;
+      font-weight: 500; white-space: nowrap;
+    }
+
+    .order-card-body { padding: 1.25rem 1.5rem; }
+
+    .order-items-preview {
+      display: flex; gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .item-chip {
+      display: flex; align-items: center; gap: 0.4rem;
+      background: var(--cream);
+      border: 1px solid var(--border-fine);
+      border-radius: 20px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.72rem; color: var(--ink-soft);
+      letter-spacing: 0.04em;
+    }
+    .item-chip-qty {
+      background: var(--sage-pale);
+      color: var(--sage-deep);
+      border-radius: 10px;
+      padding: 0 6px;
+      font-size: 0.68rem; font-weight: 600;
+    }
+
+    .order-footer-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 1rem; border-top: 1px solid var(--border-fine);
+      flex-wrap: wrap; gap: 0.75rem;
+    }
+
+    .order-total-label { font-size: 0.72rem; color: var(--ink-muted); letter-spacing: 0.06em; }
+    .order-total-val {
+      font-size: 1.1rem; font-weight: 600;
+      color: var(--sage-deep); letter-spacing: 0.04em;
+    }
+
+    .view-btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: none; border: 1px solid var(--border-mid);
+      border-radius: 2px; padding: 0.5rem 1.25rem;
+      font-family: 'Noto Serif TC', serif;
+      font-size: 0.78rem; color: var(--sage-deep);
+      letter-spacing: 0.08em; cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    .view-btn:hover {
+      background: var(--sage-deep); color: var(--cream);
+      border-color: var(--sage-deep);
+    }
+    .view-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; }
+
+    /* ===== Empty / Error States ===== */
+    .state-box {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: white;
+      border: 1px solid var(--border-fine);
+      border-radius: 4px;
+    }
+    .state-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5; }
+    .state-title {
+      font-size: 1rem; font-weight: 500;
+      color: var(--ink-soft); letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    .state-desc { font-size: 0.82rem; color: var(--ink-muted); line-height: 1.8; }
+
+    /* ===== Loading ===== */
+    .loading-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 1rem;
+      padding: 3rem;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 2px solid rgba(107,124,96,0.2);
+      border-top-color: var(--sage);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 0.8rem; color: var(--ink-muted); letter-spacing: 0.1em; }
+
+    /* ===== Tracking ===== */
+    .tracking-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-top: 0.5rem;
+      font-size: 0.75rem; color: var(--ink-muted);
+    }
+    .tracking-link {
+      color: var(--sage); text-decoration: none; letter-spacing: 0.04em;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .tracking-link:hover { border-color: var(--sage); }
+
+    /* ===== ATM Notice ===== */
+    .atm-notice {
+      background: #fffbf0;
+      border: 1px solid var(--amber-pale);
+      border-radius: 3px;
+      padding: 0.75rem 1rem;
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--terracotta);
+      line-height: 1.7;
+      letter-spacing: 0.03em;
+    }
+
+    /* ===== Progress Track ===== */
+    .mini-track {
+      display: flex; align-items: center;
+      gap: 0; margin-top: 0.75rem;
+    }
+    .mt-step {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 3px; flex: 0 0 auto;
+    }
+    .mt-dot {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--parchment2);
+      border: 1.5px solid var(--border-mid);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem;
+      transition: all 0.3s;
+    }
+    .mt-step.done  .mt-dot { background: var(--sage-pale); border-color: var(--sage); }
+    .mt-step.active .mt-dot { background: var(--sage-deep); border-color: var(--sage-deep); color: white; }
+    .mt-label { font-size: 0.6rem; color: var(--ink-muted); letter-spacing: 0.04em; white-space: nowrap; }
+    .mt-step.active .mt-label { color: var(--sage-deep); font-weight: 500; }
+    .mt-line {
+      flex: 1; height: 1.5px; min-width: 20px;
+      background: var(--border-fine);
+      margin-bottom: 14px;
+      transition: background 0.3s;
+    }
+    .mt-line.done { background: var(--sage-pale); }
+
+    /* ===== Tip Box ===== */
+    .tip-box {
+      background: var(--parchment);
+      border: 1px solid var(--border-fine);
+      border-radius: 4px;
+      padding: 1.5rem 2rem;
+      margin-top: 2rem;
+      display: flex; gap: 1rem; align-items: flex-start;
+    }
+    .tip-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .tip-content { font-size: 0.78rem; color: var(--ink-muted); line-height: 1.8; letter-spacing: 0.03em; }
+    .tip-content strong { color: var(--ink-soft); font-weight: 500; }
+
+    /* ===== Footer ===== */
+    footer {
+      border-top: 1px solid var(--border-fine);
+      padding: 2rem clamp(1.5rem,5vw,4rem);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1.5rem; flex-wrap: wrap;
+      background: var(--parchment);
+    }
+    footer p { font-size: 0.72rem; color: var(--ink-muted); letter-spacing: 0.06em; }
+    footer a { font-size: 0.72rem; color: var(--ink-muted); text-decoration: none; letter-spacing: 0.06em; transition: color 0.2s; }
+    footer a:hover { color: var(--sage-deep); }
+    footer div { display: flex; gap: 1.5rem; }
+
+    /* ===== Toast ===== */
+    .toast {
+      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--sage-deep); color: var(--cream);
+      padding: 0.7rem 1.5rem; border-radius: 2px;
+      font-size: 0.8rem; letter-spacing: 0.08em;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 999; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 640px) {
+      .search-card { padding: 1.75rem 1.25rem; }
+      .input-group { grid-template-columns: 1fr; }
+      .order-id-wrap { flex-direction: column; }
+      .order-card-head { flex-direction: column; align-items: flex-start; }
+      .mini-track { overflow-x: auto; padding-bottom: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== Navbar ===== -->
+<nav id="navbar">
+  <a href="index.html" class="logo">
+    <span class="logo-cn">芳萃本草</span>
+    <span class="logo-en">Botanical Essence</span>
+  </a>
+  <a href="index.html" class="nav-back">
+    <svg viewBox="0 0 24 24" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
+    回到首頁
+  </a>
+</nav>
+
+<!-- ===== Page Header ===== -->
+<header class="page-header">
+  <div class="page-eyebrow">My Orders</div>
+  <h1 class="page-title">查詢<em>我的訂單</em></h1>
+  <p class="page-sub">輸入訂購時留下的 Email 或訂單編號，即可查看所有訂單紀錄</p>
+</header>
+
+<!-- ===== Main ===== -->
+<main class="main-wrap">
+
+  <!-- 查詢卡片 -->
+  <div class="search-card">
+    <h2>🔍 訂單查詢</h2>
+
+    <!-- Email + 電話 查詢 -->
+    <div class="input-group">
+      <div class="input-wrap">
+        <label class="input-label" for="emailInput">電子郵件</label>
+        <input class="text-input" type="email" id="emailInput"
+               placeholder="輸入訂購時的 Email" autocomplete="email">
+      </div>
+      <div class="input-wrap">
+        <label class="input-label" for="phoneInput">手機號碼（選填）</label>
+        <input class="text-input" type="tel" id="phoneInput"
+               placeholder="09xx-xxx-xxx（輔助驗證）" autocomplete="tel">
+      </div>
+    </div>
+    <button class="search-btn" onclick="searchByEmail()" style="width:100%">
+      以 Email 查詢所有訂單
+    </button>
+
+    <div class="divider-or">或</div>
+
+    <!-- 訂單編號直接查詢 -->
+    <div class="input-wrap" style="margin-bottom:0.75rem">
+      <label class="input-label" for="orderIdInput">直接輸入訂單編號</label>
+    </div>
+    <div class="order-id-wrap">
+      <input class="text-input" type="text" id="orderIdInput"
+             placeholder="貼上完整的訂單編號…" autocomplete="off" spellcheck="false">
+      <button class="search-btn" onclick="searchById()">查詢</button>
+    </div>
+
+    <p class="search-hint">
+      📋 訂單編號可在付款完成頁面複製，或查閱收件信箱中的確認信。<br>
+      若輸入 Email 後無結果，請確認是否為下單時填寫的地址。
+    </p>
+  </div>
+
+  <!-- 結果區 -->
+  <div id="resultsSection">
+    <div id="loadingWrap" class="loading-wrap" style="display:none">
+      <div class="spinner"></div>
+      <p class="loading-text">查詢中…</p>
+    </div>
+
+    <div id="ordersContainer"></div>
+  </div>
+
+  <!-- 貼心提示 -->
+  <div class="tip-box">
+    <div class="tip-icon">💬</div>
+    <div class="tip-content">
+      <strong>需要協助？</strong><br>
+      若查詢不到訂單，或有退換貨、出貨問題，歡迎聯絡客服。<br>
+      服務時間：週一至週五 09:00–18:00　
+      <a href="contact.html" style="color:var(--sage);text-decoration:none;border-bottom:1px solid var(--sage-pale)">→ 聯絡我們</a>
+    </div>
+  </div>
+
+</main>
+
+<!-- ===== Footer ===== -->
+<footer>
+  <p>© 2025 芳萃本草 Botanical Essence. All rights reserved.</p>
+  <div>
+    <a href="faq.html">常見問題</a>
+    <a href="return.html">退換貨政策</a>
+    <a href="contact.html">聯絡我們</a>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===== Firebase ===== -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getFirestore, collection, query, where, orderBy, getDocs, doc, getDoc }
+    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCs7XOKmhYd4faBrODmsz913Ipc0dSnSlI",
+    authDomain:        "vishmanni-b2f15.firebaseapp.com",
+    projectId:         "vishmanni-b2f15",
+    storageBucket:     "vishmanni-b2f15.firebasestorage.app",
+    messagingSenderId: "575119169685",
+    appId:             "1:575119169685:web:fab464167abec7839d239c",
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  /* ============================================
+     以 Email 查詢
+  ============================================ */
+  window.searchByEmail = async function() {
+    const email = document.getElementById('emailInput').value.trim().toLowerCase();
+    const phone = document.getElementById('phoneInput').value.trim();
+
+    if (!email) { showToast('⚠ 請輸入 Email'); return; }
+    if (!email.includes('@')) { showToast('⚠ Email 格式不正確'); return; }
+
+    showLoading();
+    try {
+      const q = query(
+        collection(db, 'orders'),
+        where('receiver.email', '==', email),
+        orderBy('createdAt', 'desc')
+      );
+      const snap = await getDocs(q);
+      let orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // 若填了電話，額外過濾（寬鬆比對，去掉符號）
+      if (phone) {
+        const cleanPhone = phone.replace(/[-\s]/g, '');
+        orders = orders.filter(o => {
+          const op = (o.receiver?.phone || '').replace(/[-\s]/g, '');
+          return op === cleanPhone || op.endsWith(cleanPhone.slice(-7));
+        });
+      }
+
+      renderOrders(orders, email);
+    } catch (e) {
+      console.error(e);
+      showError('查詢失敗，請稍後再試。');
+    }
+  };
+
+  /* ============================================
+     以訂單編號查詢
+  ============================================ */
+  window.searchById = async function() {
+    const id = document.getElementById('orderIdInput').value.trim();
+    if (!id) { showToast('⚠ 請輸入訂單編號'); return; }
+
+    showLoading();
+    try {
+      const snap = await getDoc(doc(db, 'orders', id));
+      if (!snap.exists()) {
+        renderOrders([], null);
+        return;
+      }
+      renderOrders([{ id: snap.id, ...snap.data() }], null);
+    } catch (e) {
+      console.error(e);
+      showError('查詢失敗，請確認訂單編號是否正確。');
+    }
+  };
+
+  /* ============================================
+     Enter 鍵支援
+  ============================================ */
+  document.getElementById('emailInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.searchByEmail();
+  });
+  document.getElementById('phoneInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.searchByEmail();
+  });
+  document.getElementById('orderIdInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.searchById();
+  });
+
+  /* ============================================
+     渲染訂單列表
+  ============================================ */
+  function renderOrders(orders, email) {
+    hideLoading();
+    document.getElementById('resultsSection').style.display = 'block';
+    const container = document.getElementById('ordersContainer');
+
+    if (orders.length === 0) {
+      container.innerHTML = `
+        <div class="state-box">
+          <div class="state-icon">🌿</div>
+          <div class="state-title">找不到訂單</div>
+          <div class="state-desc">
+            ${email ? `查無 <strong>${email}</strong> 的訂單紀錄。<br>` : ''}
+            請確認輸入的資訊是否正確，或<a href="contact.html" style="color:var(--sage)">聯絡客服</a>協助查詢。
+          </div>
+        </div>`;
+      return;
+    }
+
+    const header = `
+      <div class="results-header">
+        <span class="results-title">查詢結果</span>
+        <span class="results-count">共 ${orders.length} 筆訂單</span>
+      </div>`;
+
+    const cards = orders.map((o, idx) => renderOrderCard(o, idx)).join('');
+    container.innerHTML = header + cards;
+  }
+
+  /* ============================================
+     單張訂單卡片
+  ============================================ */
+  const STATUS_MAP = {
+    pending:   { label:'待付款', color:'#E67E22', icon:'⏳', step: 0 },
+    paid:      { label:'已付款', color:'#4a7c59', icon:'✅', step: 1 },
+    preparing: { label:'備貨中', color:'#6b7c60', icon:'📦', step: 2 },
+    shipped:   { label:'已出貨', color:'#3e4e35', icon:'🚚', step: 3 },
+    delivered: { label:'已送達', color:'#4a7c59', icon:'🎉', step: 4 },
+    cancelled: { label:'已取消', color:'#b04a4a', icon:'✕',  step: -1 },
+  };
+
+  function renderOrderCard(o, idx) {
+    const s = STATUS_MAP[o.status] || STATUS_MAP.pending;
+    const shortId = (o.id || '').slice(0, 8).toUpperCase();
+
+    const date = o.createdAt?.toDate
+      ? o.createdAt.toDate().toLocaleString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+      : '—';
+
+    const payLabels = { credit:'信用卡', atm:'ATM 轉帳', cvs:'超商繳費', linepay:'LINE Pay' };
+    const payLabel = payLabels[o.payment?.method] || o.payment?.method || '—';
+
+    // 商品 chips
+    const chips = (o.items || []).slice(0, 4).map(item =>
+      `<div class="item-chip">
+        <span>${item.name}</span>
+        <span class="item-chip-qty">×${item.qty}</span>
+      </div>`
+    ).join('');
+    const moreItems = (o.items || []).length > 4
+      ? `<div class="item-chip" style="color:var(--ink-muted)">…還有 ${(o.items.length - 4)} 項</div>`
+      : '';
+
+    // Mini progress track
+    const steps = [
+      { key:'pending',   icon:'⏳', label:'待付款' },
+      { key:'paid',      icon:'✅', label:'已付款' },
+      { key:'preparing', icon:'📦', label:'備貨中' },
+      { key:'shipped',   icon:'🚚', label:'已出貨' },
+      { key:'delivered', icon:'🎉', label:'已送達' },
+    ];
+    const trackHTML = s.step >= 0 ? `
+      <div class="mini-track">
+        ${steps.map((st, i) => {
+          const isDone   = s.step > i;
+          const isActive = s.step === i;
+          const cls = isDone ? 'done' : isActive ? 'active' : '';
+          const line = i < steps.length - 1
+            ? `<div class="mt-line${isDone || isActive ? ' done' : ''}"></div>`
+            : '';
+          return `<div class="mt-step ${cls}">
+            <div class="mt-dot">${st.icon}</div>
+            <div class="mt-label">${st.label}</div>
+          </div>${line}`;
+        }).join('')}
+      </div>` : '';
+
+    // ATM 虛擬帳號
+    let atmHTML = '';
+    if (o.payment?.method === 'atm' && o.status === 'pending' && o.payment?.bankCode) {
+      atmHTML = `
+        <div class="atm-notice">
+          🏦 ATM 轉帳資訊：
+          銀行代碼 <strong>${o.payment.bankCode}</strong> ／
+          虛擬帳號 <strong>${o.payment.accountNumber || '—'}</strong> ／
+          繳費期限 <strong>${o.payment.expireDate || '付款後 3 天內'}</strong>
+        </div>`;
+    }
+
+    // 物流追蹤
+    let trackingHTML = '';
+    if (o.tracking?.number) {
+      const carrierNames = { blackcat:'黑貓宅急便', hct:'新竹貨運', '711':'7-11超商', family:'全家超商' };
+      const carrierUrls  = {
+        blackcat: `https://www.t-cat.com.tw/inquire/trace.aspx?no=${o.tracking.number}`,
+        hct:      `https://www.hct.com.tw/TrackingService.aspx?no=${o.tracking.number}`,
+        '711':    `https://eservice.7-11.com.tw/e-tracking/search.aspx?MOTION_NO=${o.tracking.number}`,
+        family:   `https://outline.famiport.com.tw/UI_bins/inqStatusResult.aspx?UID=${o.tracking.number}`,
+      };
+      trackingHTML = `
+        <div class="tracking-row">
+          🚛 ${carrierNames[o.tracking.carrier] || o.tracking.carrier || '物流'}
+          &nbsp;
+          <a class="tracking-link" href="${carrierUrls[o.tracking.carrier] || '#'}" target="_blank" rel="noopener">
+            ${o.tracking.number} → 追蹤包裹
+          </a>
+        </div>`;
+    }
+
+    return `
+      <div class="order-card" style="animation-delay:${idx * 80}ms">
+        <div class="order-card-head">
+          <div class="order-meta">
+            <div class="order-id-display"># ${shortId} <span style="opacity:0.4;font-size:0.7rem">${o.id}</span></div>
+            <div class="order-date">訂單時間：${date}　${payLabel}</div>
+          </div>
+          <div class="status-badge" style="background:${s.color}18;color:${s.color};border-color:${s.color}40">
+            ${s.icon} ${s.label}
+          </div>
+        </div>
+        <div class="order-card-body">
+          ${trackHTML}
+          <div class="order-items-preview" style="margin-top:${s.step >= 0 ? '1rem' : '0'}">
+            ${chips}${moreItems}
+          </div>
+          ${atmHTML}
+          ${trackingHTML}
+          <div class="order-footer-row">
+            <div>
+              <div class="order-total-label">實付總額</div>
+              <div class="order-total-val">NT$ ${(o.total || 0).toLocaleString()}</div>
+            </div>
+            <a class="view-btn" href="order.html?id=${o.id}">
+              查看完整訂單
+              <svg viewBox="0 0 24 24" stroke-width="1.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* ============================================
+     UI Helpers
+  ============================================ */
+  function showLoading() {
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('loadingWrap').style.display = 'flex';
+    document.getElementById('ordersContainer').innerHTML = '';
+  }
+  function hideLoading() {
+    document.getElementById('loadingWrap').style.display = 'none';
+  }
+  function showError(msg) {
+    hideLoading();
+    document.getElementById('resultsSection').style.display = 'block';
+    document.getElementById('ordersContainer').innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">⚠️</div>
+        <div class="state-title">查詢發生錯誤</div>
+        <div class="state-desc">${msg}</div>
+      </div>`;
+  }
+
+  /* ============================================
+     URL 預填（從 order.html 導過來時可帶 email）
+  ============================================ */
+  const urlParams = new URLSearchParams(location.search);
+  const preEmail  = urlParams.get('email');
+  const preOrder  = urlParams.get('id');
+  if (preEmail) {
+    document.getElementById('emailInput').value = preEmail;
+    window.searchByEmail();
+  } else if (preOrder) {
+    document.getElementById('orderIdInput').value = preOrder;
+    window.searchById();
+  }
+</script>
+
+<!-- ===== Global JS ===== -->
+<script>
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
+  }, { passive: true });
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+  window.showToast = showToast;
+</script>
+
+</body>
+</html>
