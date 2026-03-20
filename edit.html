@@ -284,7 +284,7 @@
         showToast('✅ 商品已儲存成功！', 'success');
 
         if (!productId) {
-          setTimeout(() => location.href = `admin-product-edit.html?id=${pid}`, 1200);
+          setTimeout(() => location.href = `edit.html?id=${pid}`, 1200);
         }
       } catch (e) {
         showToast('儲存失敗：' + e.message, 'error');
@@ -969,7 +969,7 @@
       <nav class="sidebar-nav">
         <div class="nav-group-title">商品管理</div>
         <a href="admin-products.html"><span class="icon">📦</span>商品列表</a>
-        <a href="admin-product-edit.html" class="active"><span class="icon">✏️</span>新增商品</a>
+        <a href="edit.html" class="active"><span class="icon">✏️</span>新增商品</a>
 
         <div class="nav-group-title">訂單管理</div>
         <a href="admin-orders.html"><span class="icon">📋</span>訂單列表</a>
