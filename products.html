@@ -30,7 +30,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getFirestore, collection, getDocs, query, where, orderBy }
+    import { getFirestore, connectFirestoreEmulator, collection, getDocs, query, where, orderBy }
       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -45,6 +45,9 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+      connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    }
 
     let allProducts = [];
     let filtered = [];
@@ -53,7 +56,8 @@
     const PAGE_SIZE = 12;
 
     // 購物車
-    let cart = JSON.parse(localStorage.getItem('aromaCart') || '[]');
+    window._cart = JSON.parse(localStorage.getItem('aromaCart') || '[]');
+    let cart = window._cart;
     updateCartCount();
 
     // ===== 載入商品 =====
@@ -62,11 +66,10 @@
       try {
         const q = query(
           collection(db, 'products'),
-          where('isActive', '==', true),
           orderBy('createdAt', 'desc')
         );
         const snap = await getDocs(q);
-        allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.isActive !== false);
         hideSkeleton();
         applyFilter();
       } catch (e) {
@@ -179,7 +182,8 @@
                 ${p.volume ? `<small>${p.volume}</small>` : ''}
               </span>
               <button class="card-cart-btn ${(p.stock||0) <= 0 ? 'disabled' : ''}"
-                onclick="event.preventDefault(); ${(p.stock||0) > 0 ? `addToCart('${p.id}','${p.name}',${p.price},'${p.images?.[0]||''}')` : ''}">
+                data-id="${p.id}" data-name="${(p.name||'').replace(/"/g,'&quot;')}" data-price="${p.price||0}" data-image="${p.images?.[0]||''}"
+                onclick="event.preventDefault(); if(!this.classList.contains('disabled')){window._addToCart(this.dataset.id,this.dataset.name,this.dataset.price,this.dataset.image)}">
                 ${(p.stock||0) <= 0 ? '缺貨' : '＋ 加入'}
               </button>
             </div>
@@ -216,7 +220,8 @@
             <div class="list-price">NT$ ${(p.price||0).toLocaleString()}<small>${p.volume||''}</small></div>
             ${stockLabel ? `<div class="list-stock-warn">${stockLabel}</div>` : ''}
             <button class="card-cart-btn ${(p.stock||0) <= 0 ? 'disabled' : ''}"
-              onclick="event.preventDefault(); ${(p.stock||0) > 0 ? `addToCart('${p.id}','${p.name}',${p.price},'${p.images?.[0]||''}')` : ''}">
+              data-id="${p.id}" data-name="${(p.name||'').replace(/"/g,'&quot;')}" data-price="${p.price||0}" data-image="${p.images?.[0]||''}"
+              onclick="event.preventDefault(); if(!this.classList.contains('disabled')){window._addToCart(this.dataset.id,this.dataset.name,this.dataset.price,this.dataset.image)}">
               ${(p.stock||0) <= 0 ? '缺貨' : '＋ 加入購物車'}
             </button>
           </div>
@@ -270,17 +275,18 @@
     };
 
     // ===== 購物車 =====
-    window.addToCart = (id, name, price, image) => {
+    window._addToCart = (id, name, price, image) => {
+      const cart = window._cart;
       const idx = cart.findIndex(i => i.id === id);
       if (idx >= 0) cart[idx].qty++;
-      else cart.push({ id, name, price, image, qty: 1 });
+      else cart.push({ id, name: String(name), price: Number(price), image: image || '', qty: 1 });
       localStorage.setItem('aromaCart', JSON.stringify(cart));
       updateCartCount();
-      showToast(`🛒 ${name} 已加入購物車`);
+      showToast('🛒 ' + name + ' 已加入購物車');
     };
 
     function updateCartCount() {
-      const total = cart.reduce((s, i) => s + i.qty, 0);
+      const total = (window._cart||[]).reduce((s, i) => s + i.qty, 0);
       document.querySelectorAll('.cart-count').forEach(el => el.textContent = total);
     }
 

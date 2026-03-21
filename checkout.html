@@ -12,8 +12,8 @@
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-    import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment }
+    import { getAuth, connectAuthEmulator, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { getFirestore, connectFirestoreEmulator, collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment }
       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -29,6 +29,10 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+      connectAuthEmulator(auth, 'http://127.0.0.1:9099');
+      connectFirestoreEmulator(db, '127.0.0.1', 8080);
+    }
 
     // 讀取購物車與前頁設定
     let cart = JSON.parse(localStorage.getItem('aromaCart') || '[]');
@@ -53,7 +57,7 @@
 
     // ===== 計算金額 =====
     function calcAmounts() {
-      const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+      const subtotal = cart.reduce((s, i) => s + (Number(i.price)||0) * (i.qty||1), 0);
       let discount = 0;
       let freeShipping = subtotal >= FREE_THRESHOLD;
 
