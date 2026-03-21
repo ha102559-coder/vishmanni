@@ -7,7 +7,7 @@
  *  3. ecpayOrderQuery   — 主動查詢訂單付款狀態（選用）
  */
 
-const functions = require("firebase-functions");
+const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
 const axios = require("axios");
@@ -21,12 +21,11 @@ const db = admin.firestore();
 // ============================================================
 function getConfig() {
   return {
-    MERCHANT_ID:   "3103095",
-    HASH_KEY:      "JUi73W4Zh58OsEqE",
-    HASH_IV:       "BjcWioK6rMb3O5Jv",
-    IS_PRODUCTION: true,                      // true = 正式環境（會真的扣款）
-    BASE_URL:      "https://yourdomain.com",  // ← 換成你的實際網址
-  };
+    MERCHANT_ID:   process.env.ECPAY_MERCHANT_ID,
+    HASH_KEY:      process.env.ECPAY_HASH_KEY,
+    HASH_IV:       process.env.ECPAY_HASH_IV,
+    IS_PRODUCTION: process.env.ECPAY_IS_PRODUCTION === "true",
+    BASE_URL:      process.env.BASE_URL,  };
 }
 
 // 綠界 API 網址
@@ -128,7 +127,7 @@ exports.createECPayOrder = functions
         TotalAmount:       String(Math.round(order.total || 0)),
         TradeDesc:         encodeURIComponent("芳萃本草精油訂購"),
         ItemName:          itemNames,
-        ReturnURL:         `${BASE_URL}/api/ecpayCallback`,
+        ReturnURL: `https://asia-east1-vishmanni-b2f15.cloudfunctions.net/ecpayCallback`,
         OrderResultURL:    `${BASE_URL}/order.html?id=${orderId}`,
         ChoosePayment:     mapPayment(paymentMethod || order.payment?.method),
         EncryptType:       "1",
