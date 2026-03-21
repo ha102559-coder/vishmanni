@@ -25,453 +25,168 @@
       --amber:      #b8924a;
       --amber-warm: #d4a85e;
       --amber-pale: #edddb8;
-      --terracotta: #8c5e45;
       --border-fine: rgba(184,146,74,0.2);
       --border-mid:  rgba(184,146,74,0.35);
       --shadow-warm: rgba(26,21,16,0.08);
-      --success: #3a7d44;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; font-size: 16px; }
-
     body {
-      background: var(--cream);
-      color: var(--ink);
-      font-family: 'Noto Serif TC', serif;
-      font-weight: 300;
-      overflow-x: hidden;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      background: var(--cream); color: var(--ink);
+      font-family: 'Noto Serif TC', serif; font-weight: 300;
+      overflow-x: hidden; min-height: 100vh;
+      display: flex; flex-direction: column;
     }
-
     body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
+      content: ''; position: fixed; inset: 0;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.6;
+      pointer-events: none; z-index: 0; opacity: 0.6;
     }
 
     /* ===== 導覽列 ===== */
     #navbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 200;
-      height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      height: 76px; display: flex; align-items: center; justify-content: space-between;
       padding: 0 clamp(1.5rem, 5vw, 4rem);
-      background: rgba(250,247,242,0.88);
-      backdrop-filter: blur(20px) saturate(1.4);
+      background: rgba(250,247,242,0.88); backdrop-filter: blur(20px) saturate(1.4);
       border-bottom: 1px solid var(--border-fine);
       transition: height 0.4s cubic-bezier(0.4,0,0.2,1), box-shadow 0.4s;
     }
-    #navbar.scrolled {
-      height: 62px;
-      box-shadow: 0 2px 40px var(--shadow-warm);
-    }
-    .logo {
-      display: flex; flex-direction: column;
-      line-height: 1; text-decoration: none; gap: 3px;
-    }
+    #navbar.scrolled { height: 62px; box-shadow: 0 2px 40px var(--shadow-warm); }
+    .logo { display: flex; flex-direction: column; line-height: 1; text-decoration: none; gap: 3px; }
     .logo-cn { font-size: 1.25rem; font-weight: 600; color: var(--sage-deep); letter-spacing: 0.18em; }
     .logo-en { font-family: 'Cormorant Garamond', serif; font-size: 0.7rem; font-weight: 300; font-style: italic; color: var(--amber); letter-spacing: 0.3em; }
     .nav-center { display: flex; align-items: center; gap: 3rem; list-style: none; }
-    .nav-center a {
-      text-decoration: none; font-size: 0.8rem; letter-spacing: 0.12em;
-      color: var(--ink-muted); position: relative; transition: color 0.3s;
-    }
-    .nav-center a::after {
-      content: ''; position: absolute; bottom: -3px; left: 0;
-      width: 0; height: 1px; background: var(--amber);
-      transition: width 0.35s cubic-bezier(0.4,0,0.2,1);
-    }
-    .nav-center a:hover { color: var(--sage-deep); }
+    .nav-center a { text-decoration: none; font-size: 0.8rem; letter-spacing: 0.12em; color: var(--ink-muted); position: relative; transition: color 0.3s; }
+    .nav-center a::after { content: ''; position: absolute; bottom: -3px; left: 0; width: 0; height: 1px; background: var(--amber); transition: width 0.35s cubic-bezier(0.4,0,0.2,1); }
+    .nav-center a:hover, .nav-center a.active { color: var(--sage-deep); }
     .nav-center a:hover::after, .nav-center a.active::after { width: 100%; }
-    .nav-center a.active { color: var(--sage-deep); }
     .nav-right { display: flex; align-items: center; gap: 1rem; }
-    .cart-btn {
-      background: none; border: 1px solid var(--border-mid); border-radius: 2px;
-      padding: 0.45rem 1.2rem; font-family: 'Noto Serif TC', serif;
-      font-size: 0.78rem; color: var(--sage-deep); cursor: pointer;
-      letter-spacing: 0.1em; transition: all 0.3s;
-      display: flex; align-items: center; gap: 0.5rem;
-    }
+    .cart-btn { background: none; border: 1px solid var(--border-mid); border-radius: 2px; padding: 0.45rem 1.2rem; font-family: 'Noto Serif TC', serif; font-size: 0.78rem; color: var(--sage-deep); cursor: pointer; letter-spacing: 0.1em; transition: all 0.3s; display: flex; align-items: center; gap: 0.5rem; }
     .cart-btn:hover { background: var(--sage-deep); color: var(--cream); border-color: var(--sage-deep); }
-    .cart-count {
-      background: var(--amber); color: white; font-size: 0.6rem;
-      min-width: 16px; height: 16px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0 4px; font-weight: 600;
-    }
+    .cart-count { background: var(--amber); color: white; font-size: 0.6rem; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; font-weight: 600; }
 
-    /* ===== Hero Banner ===== */
+    /* ===== Hero ===== */
     .page-hero {
       margin-top: 76px;
       background: linear-gradient(135deg, var(--sage-deep) 0%, #2e3d26 60%, #4a3520 100%);
       padding: 5rem clamp(1.5rem, 8vw, 7rem) 4rem;
-      position: relative;
-      overflow: hidden;
+      position: relative; overflow: hidden;
     }
-    .page-hero::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.03)' stroke-width='1'%3E%3Ccircle cx='40' cy='40' r='35'/%3E%3Ccircle cx='40' cy='40' r='20'/%3E%3Ccircle cx='40' cy='40' r='8'/%3E%3C/g%3E%3C/svg%3E") repeat;
-      pointer-events: none;
-    }
-    .page-hero::after {
-      content: '';
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--amber), transparent);
-    }
-    .hero-inner {
-      position: relative; z-index: 1;
-      max-width: 700px;
-    }
-    .hero-eyebrow {
-      display: flex; align-items: center; gap: 0.8rem;
-      margin-bottom: 1.5rem;
-    }
+    .page-hero::before { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.03)' stroke-width='1'%3E%3Ccircle cx='40' cy='40' r='35'/%3E%3Ccircle cx='40' cy='40' r='20'/%3E%3Ccircle cx='40' cy='40' r='8'/%3E%3C/g%3E%3C/svg%3E") repeat; pointer-events: none; }
+    .page-hero::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--amber), transparent); }
+    .hero-inner { position: relative; z-index: 1; max-width: 700px; }
+    .hero-eyebrow { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.5rem; }
     .hero-eyebrow-line { width: 32px; height: 1px; background: var(--amber-warm); }
-    .hero-eyebrow span {
-      font-family: 'Cormorant Garamond', serif;
-      font-style: italic; font-size: 0.85rem;
-      color: var(--amber-warm); letter-spacing: 0.25em;
-    }
-    .hero-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: clamp(2rem, 4vw, 3rem);
-      color: white; font-weight: 400;
-      line-height: 1.2; letter-spacing: 0.02em;
-      margin-bottom: 1rem;
-    }
+    .hero-eyebrow span { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.85rem; color: var(--amber-warm); letter-spacing: 0.25em; }
+    .hero-title { font-family: 'DM Serif Display', serif; font-size: clamp(2rem, 4vw, 3rem); color: white; font-weight: 400; line-height: 1.2; letter-spacing: 0.02em; margin-bottom: 1rem; }
     .hero-title em { font-style: italic; color: var(--amber-warm); }
-    .hero-subtitle {
-      font-size: 0.9rem; color: rgba(255,255,255,0.65);
-      line-height: 1.8; letter-spacing: 0.06em;
-      max-width: 480px;
-    }
+    .hero-subtitle { font-size: 0.9rem; color: rgba(255,255,255,0.65); line-height: 1.8; letter-spacing: 0.06em; max-width: 480px; }
 
     /* ===== 主體 ===== */
-    main {
-      flex: 1;
-      padding: 5rem clamp(1.5rem, 8vw, 7rem);
-      position: relative; z-index: 1;
-    }
+    main { flex: 1; padding: 5rem clamp(1.5rem, 8vw, 7rem); position: relative; z-index: 1; }
+    .contact-grid { display: grid; grid-template-columns: 1fr 1.6fr; gap: 4rem; max-width: 1100px; margin: 0 auto; }
 
-    .contact-grid {
-      display: grid;
-      grid-template-columns: 1fr 1.6fr;
-      gap: 4rem;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
+    /* ===== 左欄 ===== */
+    .info-section-label { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.78rem; letter-spacing: 0.3em; color: var(--amber); text-transform: uppercase; margin-bottom: 0.8rem; }
+    .info-heading { font-family: 'DM Serif Display', serif; font-size: 1.6rem; color: var(--sage-deep); font-weight: 400; line-height: 1.3; margin-bottom: 1rem; }
+    .info-desc { font-size: 0.85rem; color: var(--ink-muted); line-height: 1.9; letter-spacing: 0.04em; margin-bottom: 2.5rem; padding-bottom: 2rem; border-bottom: 1px solid var(--border-fine); }
 
-    /* ===== 左欄：聯絡資訊 ===== */
-    .info-col {}
-
-    .info-section-label {
-      font-family: 'Cormorant Garamond', serif;
-      font-style: italic;
-      font-size: 0.78rem;
-      letter-spacing: 0.3em;
-      color: var(--amber);
-      text-transform: uppercase;
-      margin-bottom: 0.8rem;
-    }
-
-    .info-heading {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.6rem;
-      color: var(--sage-deep);
-      font-weight: 400;
-      line-height: 1.3;
-      margin-bottom: 1rem;
-    }
-
-    .info-desc {
-      font-size: 0.85rem;
-      color: var(--ink-muted);
-      line-height: 1.9;
-      letter-spacing: 0.04em;
-      margin-bottom: 2.5rem;
-      padding-bottom: 2rem;
-      border-bottom: 1px solid var(--border-fine);
-    }
-
-    .contact-cards { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2.5rem; }
-
-    .contact-card {
-      display: flex; align-items: flex-start; gap: 1rem;
-      padding: 1.2rem 1.4rem;
-      background: white;
-      border: 1px solid var(--border-fine);
-      border-radius: 2px;
-      transition: border-color 0.3s, box-shadow 0.3s;
-    }
-    .contact-card:hover {
-      border-color: var(--border-mid);
-      box-shadow: 0 4px 20px var(--shadow-warm);
-    }
-    .cc-icon {
-      width: 38px; height: 38px; flex-shrink: 0;
-      background: var(--parchment);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem;
-    }
-    .cc-body {}
-    .cc-label {
-      font-size: 0.7rem; letter-spacing: 0.15em;
-      color: var(--ink-muted); text-transform: uppercase;
-      margin-bottom: 0.2rem;
-    }
-    .cc-value {
-      font-size: 0.88rem; color: var(--ink-soft);
-      font-weight: 400; letter-spacing: 0.04em;
-    }
-    .cc-note { font-size: 0.72rem; color: var(--ink-muted); margin-top: 0.15rem; }
-
-    .hours-block {
-      background: var(--parchment);
-      border: 1px solid var(--border-fine);
-      border-radius: 2px;
-      padding: 1.4rem 1.6rem;
-    }
-    .hours-title {
-      font-size: 0.75rem; letter-spacing: 0.15em;
-      color: var(--sage-deep); text-transform: uppercase;
-      font-weight: 500; margin-bottom: 1rem;
-      display: flex; align-items: center; gap: 0.5rem;
-    }
+    .hours-block { background: var(--parchment); border: 1px solid var(--border-fine); border-radius: 2px; padding: 1.4rem 1.6rem; margin-bottom: 1.2rem; }
+    .hours-title { font-size: 0.75rem; letter-spacing: 0.15em; color: var(--sage-deep); text-transform: uppercase; font-weight: 500; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
     .hours-title::before { content: ''; display: inline-block; width: 20px; height: 1px; background: var(--amber); }
     .hours-rows { display: flex; flex-direction: column; gap: 0.5rem; }
-    .hours-row {
-      display: flex; justify-content: space-between;
-      font-size: 0.8rem; color: var(--ink-muted); letter-spacing: 0.04em;
-    }
+    .hours-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--ink-muted); letter-spacing: 0.04em; }
     .hours-row span:last-child { color: var(--ink-soft); font-weight: 400; }
-    .hours-note {
-      margin-top: 0.8rem; padding-top: 0.8rem;
-      border-top: 1px solid var(--border-fine);
-      font-size: 0.72rem; color: var(--ink-muted); line-height: 1.7;
-    }
+    .hours-note { margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid var(--border-fine); font-size: 0.72rem; color: var(--ink-muted); line-height: 1.7; }
+
+    /* ===== 查詢回覆區塊 ===== */
+    .lookup-block { background: white; border: 1px solid var(--border-fine); border-radius: 2px; padding: 1.4rem 1.6rem; }
+    .lookup-title { font-size: 0.75rem; letter-spacing: 0.15em; color: var(--sage-deep); text-transform: uppercase; font-weight: 500; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .lookup-title::before { content: ''; display: inline-block; width: 20px; height: 1px; background: var(--amber); }
+    .lookup-desc { font-size: 0.75rem; color: var(--ink-muted); line-height: 1.6; margin-bottom: 1rem; }
+    .lookup-input-row { display: flex; gap: 0.5rem; }
+    .lookup-input { flex: 1; font-family: 'Noto Serif TC', serif; font-size: 0.8rem; font-weight: 300; color: var(--ink); background: var(--cream); border: 1px solid var(--border-mid); border-radius: 2px; padding: 0.6rem 0.8rem; outline: none; transition: border-color 0.3s; }
+    .lookup-input:focus { border-color: var(--sage); background: white; }
+    .lookup-input::placeholder { color: rgba(122,110,96,0.5); }
+    .lookup-btn { padding: 0.6rem 1rem; background: var(--sage-deep); color: white; border: none; border-radius: 2px; font-family: 'Noto Serif TC', serif; font-size: 0.75rem; letter-spacing: 0.08em; cursor: pointer; transition: background 0.3s; white-space: nowrap; }
+    .lookup-btn:hover { background: #2e3d26; }
+    .lookup-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* 查詢結果卡片 */
+    .lookup-results { margin-top: 1.2rem; display: flex; flex-direction: column; gap: 0.8rem; }
+    .lookup-result-item { background: var(--parchment); border: 1px solid var(--border-fine); border-radius: 2px; padding: 1rem 1.2rem; font-size: 0.8rem; }
+    .lri-topic { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--amber); text-transform: uppercase; margin-bottom: 0.4rem; }
+    .lri-msg { color: var(--ink-soft); line-height: 1.6; margin-bottom: 0.4rem; }
+    .lri-date { font-size: 0.68rem; color: var(--ink-muted); margin-bottom: 0.8rem; }
+    .lri-reply { background: white; border-left: 2px solid var(--sage); padding: 0.7rem 1rem; border-radius: 0 2px 2px 0; }
+    .lri-reply-label { font-size: 0.65rem; letter-spacing: 0.12em; color: var(--sage-deep); text-transform: uppercase; font-weight: 500; margin-bottom: 0.3rem; }
+    .lri-reply-text { color: var(--ink-soft); line-height: 1.6; }
+    .lri-pending { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--ink-muted); font-style: italic; }
+    .lri-pending::before { content: '⏳'; font-style: normal; }
 
     /* ===== 右欄：表單 ===== */
-    .form-col {}
-
-    .form-card {
-      background: white;
-      border: 1px solid var(--border-fine);
-      border-radius: 2px;
-      padding: 2.5rem;
-      box-shadow: 0 8px 40px rgba(26,21,16,0.05);
-    }
-
-    .form-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.4rem; color: var(--sage-deep);
-      font-weight: 400; margin-bottom: 0.4rem;
-    }
-    .form-subtitle {
-      font-size: 0.78rem; color: var(--ink-muted);
-      letter-spacing: 0.06em; margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border-fine);
-    }
-
+    .form-card { background: white; border: 1px solid var(--border-fine); border-radius: 2px; padding: 2.5rem; box-shadow: 0 8px 40px rgba(26,21,16,0.05); }
+    .form-title { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--sage-deep); font-weight: 400; margin-bottom: 0.4rem; }
+    .form-subtitle { font-size: 0.78rem; color: var(--ink-muted); letter-spacing: 0.06em; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-fine); }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-bottom: 1.2rem; }
     .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.2rem; }
     .form-group.half { margin-bottom: 0; }
-
-    .form-label {
-      font-size: 0.72rem; letter-spacing: 0.14em;
-      color: var(--ink-muted); text-transform: uppercase;
-    }
+    .form-label { font-size: 0.72rem; letter-spacing: 0.14em; color: var(--ink-muted); text-transform: uppercase; }
     .form-label .req { color: var(--amber); margin-left: 2px; }
-
-    .form-input, .form-select, .form-textarea {
-      font-family: 'Noto Serif TC', serif;
-      font-size: 0.85rem; font-weight: 300;
-      color: var(--ink);
-      background: var(--cream);
-      border: 1px solid var(--border-mid);
-      border-radius: 2px;
-      padding: 0.75rem 1rem;
-      transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
-      outline: none;
-      width: 100%;
-      letter-spacing: 0.04em;
-    }
-    .form-input:focus, .form-select:focus, .form-textarea:focus {
-      border-color: var(--sage);
-      background: white;
-      box-shadow: 0 0 0 3px rgba(107,124,96,0.08);
-    }
+    .form-input, .form-textarea { font-family: 'Noto Serif TC', serif; font-size: 0.85rem; font-weight: 300; color: var(--ink); background: var(--cream); border: 1px solid var(--border-mid); border-radius: 2px; padding: 0.75rem 1rem; transition: border-color 0.3s, background 0.3s, box-shadow 0.3s; outline: none; width: 100%; letter-spacing: 0.04em; }
+    .form-input:focus, .form-textarea:focus { border-color: var(--sage); background: white; box-shadow: 0 0 0 3px rgba(107,124,96,0.08); }
     .form-input::placeholder, .form-textarea::placeholder { color: rgba(122,110,96,0.5); }
-    .form-select { appearance: none; cursor: pointer; }
-    .select-wrap { position: relative; }
-    .select-wrap::after {
-      content: '▾'; position: absolute; right: 1rem; top: 50%;
-      transform: translateY(-50%); color: var(--ink-muted);
-      font-size: 0.8rem; pointer-events: none;
-    }
     .form-textarea { resize: vertical; min-height: 130px; line-height: 1.7; }
 
-    /* 主旨標籤選擇 */
     .topic-group { margin-bottom: 1.5rem; }
-    .topic-label-title {
-      font-size: 0.72rem; letter-spacing: 0.14em;
-      color: var(--ink-muted); text-transform: uppercase;
-      margin-bottom: 0.6rem; display: block;
-    }
+    .topic-label-title { font-size: 0.72rem; letter-spacing: 0.14em; color: var(--ink-muted); text-transform: uppercase; margin-bottom: 0.6rem; display: block; }
     .topic-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .topic-chip {
-      padding: 0.35rem 0.9rem;
-      border: 1px solid var(--border-mid);
-      border-radius: 20px; background: transparent;
-      font-family: 'Noto Serif TC', serif;
-      font-size: 0.75rem; color: var(--ink-muted);
-      cursor: pointer; letter-spacing: 0.06em;
-      transition: all 0.25s;
-    }
+    .topic-chip { padding: 0.35rem 0.9rem; border: 1px solid var(--border-mid); border-radius: 20px; background: transparent; font-family: 'Noto Serif TC', serif; font-size: 0.75rem; color: var(--ink-muted); cursor: pointer; letter-spacing: 0.06em; transition: all 0.25s; }
     .topic-chip:hover { border-color: var(--sage); color: var(--sage-deep); background: rgba(107,124,96,0.05); }
     .topic-chip.active { border-color: var(--sage-deep); background: var(--sage-deep); color: white; }
 
-    .form-submit {
-      width: 100%;
-      margin-top: 0.5rem;
-      padding: 0.9rem 2rem;
-      background: var(--sage-deep);
-      color: white; border: none;
-      border-radius: 2px;
-      font-family: 'Noto Serif TC', serif;
-      font-size: 0.85rem; font-weight: 400;
-      letter-spacing: 0.15em;
-      cursor: pointer;
-      transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
-      position: relative; overflow: hidden;
-    }
-    .form-submit::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
-      transform: translateX(-100%);
-      transition: transform 0.5s;
-    }
+    .form-submit { width: 100%; margin-top: 0.5rem; padding: 0.9rem 2rem; background: var(--sage-deep); color: white; border: none; border-radius: 2px; font-family: 'Noto Serif TC', serif; font-size: 0.85rem; font-weight: 400; letter-spacing: 0.15em; cursor: pointer; transition: all 0.35s cubic-bezier(0.4,0,0.2,1); position: relative; overflow: hidden; }
+    .form-submit::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%); transform: translateX(-100%); transition: transform 0.5s; }
     .form-submit:hover::before { transform: translateX(100%); }
     .form-submit:hover { background: #2e3d26; box-shadow: 0 6px 24px rgba(62,78,53,0.25); }
-    .form-submit:active { transform: translateY(1px); }
     .form-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    /* 送出後成功畫面 */
-    .success-state {
-      display: none;
-      flex-direction: column; align-items: center;
-      text-align: center; padding: 3rem 2rem;
-      gap: 1rem;
-    }
-    .success-icon {
-      width: 64px; height: 64px;
-      background: rgba(62,78,53,0.1); border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.8rem;
-      animation: popIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
-    }
+    .success-state { display: none; flex-direction: column; align-items: center; text-align: center; padding: 3rem 2rem; gap: 1rem; }
+    .success-icon { width: 64px; height: 64px; background: rgba(62,78,53,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; animation: popIn 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
     @keyframes popIn { from { opacity:0; transform:scale(0.5); } to { opacity:1; transform:scale(1); } }
     .success-title { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--sage-deep); }
-    .success-text { font-size: 0.85rem; color: var(--ink-muted); line-height: 1.8; max-width: 300px; }
-    .success-back {
-      margin-top: 0.5rem;
-      display: inline-block; padding: 0.6rem 1.8rem;
-      border: 1px solid var(--border-mid); border-radius: 2px;
-      text-decoration: none; font-size: 0.78rem;
-      color: var(--sage-deep); letter-spacing: 0.1em;
-      transition: all 0.3s;
-    }
+    .success-text { font-size: 0.85rem; color: var(--ink-muted); line-height: 1.8; max-width: 320px; }
+    .success-actions { display: flex; flex-direction: column; gap: 0.6rem; width: 100%; max-width: 260px; margin-top: 0.5rem; }
+    .success-back { display: inline-block; padding: 0.6rem 1.8rem; border: 1px solid var(--border-mid); border-radius: 2px; text-decoration: none; font-size: 0.78rem; color: var(--sage-deep); letter-spacing: 0.1em; transition: all 0.3s; text-align: center; cursor: pointer; background: none; font-family: 'Noto Serif TC', serif; }
     .success-back:hover { background: var(--sage-deep); color: white; border-color: var(--sage-deep); }
+    .success-back.primary { background: var(--sage-deep); color: white; border-color: var(--sage-deep); }
+    .success-back.primary:hover { background: #2e3d26; }
 
     /* ===== FAQ ===== */
-    .faq-section {
-      max-width: 1100px; margin: 0 auto;
-      padding-top: 4rem;
-      border-top: 1px solid var(--border-fine);
-    }
+    #faq { scroll-margin-top: 96px; }
+    .faq-section { max-width: 1100px; margin: 0 auto; padding-top: 4rem; border-top: 1px solid var(--border-fine); }
     .section-header { text-align: center; margin-bottom: 3rem; }
-    .section-tag {
-      font-family: 'Cormorant Garamond', serif;
-      font-style: italic; font-size: 0.8rem;
-      letter-spacing: 0.3em; color: var(--amber);
-      display: block; margin-bottom: 0.6rem;
-    }
-    .section-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: clamp(1.4rem, 2.5vw, 1.8rem);
-      color: var(--sage-deep); font-weight: 400;
-    }
-
+    .section-tag { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.8rem; letter-spacing: 0.3em; color: var(--amber); display: block; margin-bottom: 0.6rem; }
+    .section-title { font-family: 'DM Serif Display', serif; font-size: clamp(1.4rem, 2.5vw, 1.8rem); color: var(--sage-deep); font-weight: 400; }
     .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-
-    .faq-item {
-      background: white;
-      border: 1px solid var(--border-fine);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .faq-q {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 1.1rem 1.4rem;
-      cursor: pointer;
-      font-size: 0.85rem; color: var(--ink-soft);
-      letter-spacing: 0.04em; font-weight: 400;
-      transition: background 0.2s;
-      gap: 1rem;
-    }
+    .faq-item { background: white; border: 1px solid var(--border-fine); border-radius: 2px; overflow: hidden; }
+    .faq-q { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.4rem; cursor: pointer; font-size: 0.85rem; color: var(--ink-soft); letter-spacing: 0.04em; font-weight: 400; transition: background 0.2s; gap: 1rem; }
     .faq-q:hover { background: var(--parchment); }
-    .faq-arrow {
-      font-size: 0.7rem; color: var(--amber);
-      transition: transform 0.3s; flex-shrink: 0;
-    }
+    .faq-arrow { font-size: 0.7rem; color: var(--amber); transition: transform 0.3s; flex-shrink: 0; }
     .faq-item.open .faq-arrow { transform: rotate(180deg); }
-    .faq-a {
-      max-height: 0; overflow: hidden;
-      transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
-      font-size: 0.8rem; color: var(--ink-muted);
-      line-height: 1.8; letter-spacing: 0.04em;
-      padding: 0 1.4rem;
-    }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1); font-size: 0.8rem; color: var(--ink-muted); line-height: 1.8; letter-spacing: 0.04em; padding: 0 1.4rem; }
     .faq-item.open .faq-a { max-height: 200px; padding: 0 1.4rem 1.2rem; }
 
     /* ===== 頁尾 ===== */
-    footer {
-      margin-top: auto;
-      background: var(--ink);
-      color: rgba(255,255,255,0.5);
-      padding: 2rem clamp(1.5rem, 8vw, 7rem);
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: 0.75rem; letter-spacing: 0.08em;
-      position: relative; z-index: 1;
-    }
+    footer { margin-top: auto; background: var(--ink); color: rgba(255,255,255,0.5); padding: 2rem clamp(1.5rem, 8vw, 7rem); display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; letter-spacing: 0.08em; position: relative; z-index: 1; }
     footer a { color: rgba(255,255,255,0.4); text-decoration: none; transition: color 0.3s; }
     footer a:hover { color: var(--amber-warm); }
     .footer-links { display: flex; gap: 2rem; }
 
     /* ===== Toast ===== */
-    .toast {
-      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(8px);
-      background: var(--ink); color: white;
-      padding: 0.7rem 1.6rem; border-radius: 2px;
-      font-size: 0.8rem; letter-spacing: 0.08em;
-      opacity: 0; transition: all 0.35s; z-index: 999;
-      white-space: nowrap;
-    }
+    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--ink); color: white; padding: 0.7rem 1.6rem; border-radius: 2px; font-size: 0.8rem; letter-spacing: 0.08em; opacity: 0; transition: all 0.35s; z-index: 999; white-space: nowrap; }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* ===== Reveal ===== */
@@ -479,22 +194,12 @@
     .reveal.visible { opacity: 1; transform: translateY(0); }
 
     /* ===== RWD ===== */
-    @media (max-width: 900px) {
-      .contact-grid { grid-template-columns: 1fr; gap: 3rem; }
-      .faq-grid { grid-template-columns: 1fr; }
-      .nav-center { display: none; }
-    }
-    @media (max-width: 540px) {
-      main { padding: 3rem 1.5rem; }
-      .form-row { grid-template-columns: 1fr; }
-      .form-card { padding: 1.5rem; }
-      footer { flex-direction: column; gap: 1rem; text-align: center; }
-    }
+    @media (max-width: 900px) { .contact-grid { grid-template-columns: 1fr; gap: 3rem; } .faq-grid { grid-template-columns: 1fr; } .nav-center { display: none; } }
+    @media (max-width: 540px) { main { padding: 3rem 1.5rem; } .form-row { grid-template-columns: 1fr; } .form-card { padding: 1.5rem; } footer { flex-direction: column; gap: 1rem; text-align: center; } }
   </style>
 </head>
 <body>
 
-  <!-- ===== 導覽列 ===== -->
   <nav id="navbar" role="navigation" aria-label="主要導覽">
     <a href="index.html" class="logo" aria-label="芳萃本草首頁">
       <span class="logo-cn">芳萃本草</span>
@@ -508,14 +213,13 @@
     </ul>
     <div class="nav-right">
       <button class="cart-btn" onclick="location.href='cart.html'" aria-label="購物車">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
         購物車
         <span class="cart-count" id="cartCount">0</span>
       </button>
     </div>
   </nav>
 
-  <!-- ===== Hero ===== -->
   <header class="page-hero">
     <div class="hero-inner">
       <div class="hero-eyebrow">
@@ -527,17 +231,14 @@
     </div>
   </header>
 
-  <!-- ===== 主體 ===== -->
   <main>
     <div class="contact-grid">
 
-      <!-- 左欄：聯絡資訊 -->
+      <!-- 左欄 -->
       <aside class="info-col">
         <p class="info-section-label reveal">Get in Touch</p>
         <h2 class="info-heading reveal">我們在這裡<br>等候您的來訊</h2>
-        <p class="info-desc reveal">
-          芳萃本草的客服團隊由專業芳療師組成，不僅能協助處理訂單問題，更能提供個人化的精油搭配建議與芳療諮詢。
-        </p>
+        <p class="info-desc reveal">芳萃本草的客服團隊由專業芳療師組成，不僅能協助處理訂單問題，更能提供個人化的精油搭配建議與芳療諮詢。</p>
 
         <div class="hours-block reveal">
           <div class="hours-title">客服服務時間</div>
@@ -548,18 +249,27 @@
           </div>
           <p class="hours-note">如在非服務時間來訊，我們將於下一個工作日優先回覆您的訊息。</p>
         </div>
+
+        <!-- 查詢回覆 -->
+        <div class="lookup-block reveal">
+          <div class="lookup-title">查詢我的回覆</div>
+          <p class="lookup-desc">輸入您當初填寫的 Email，即可查看所有訊息及客服回覆狀態。</p>
+          <div class="lookup-input-row">
+            <input class="lookup-input" type="email" id="lookupEmail" placeholder="your@email.com">
+            <button class="lookup-btn" id="lookupBtn" onclick="lookupMessages()">查詢</button>
+          </div>
+          <div class="lookup-results" id="lookupResults"></div>
+        </div>
       </aside>
 
       <!-- 右欄：表單 -->
       <section class="form-col">
         <div class="form-card reveal">
 
-          <!-- 表單 -->
           <div id="formState">
             <h2 class="form-title">傳送訊息給我們</h2>
             <p class="form-subtitle">填寫以下表單，我們將盡快與您聯繫</p>
 
-            <!-- 主旨選擇 -->
             <div class="topic-group">
               <span class="topic-label-title">諮詢主旨 <span style="color:var(--amber)">*</span></span>
               <div class="topic-chips" id="topicChips">
@@ -575,7 +285,7 @@
             <div class="form-row">
               <div class="form-group half">
                 <label class="form-label" for="fname">姓名 <span class="req">*</span></label>
-                <input class="form-input" type="text" id="fname" placeholder="王小明" required>
+                <input class="form-input" type="text" id="fname" placeholder="王小明">
               </div>
               <div class="form-group half">
                 <label class="form-label" for="fphone">手機號碼</label>
@@ -585,7 +295,7 @@
 
             <div class="form-group">
               <label class="form-label" for="femail">電子郵件 <span class="req">*</span></label>
-              <input class="form-input" type="email" id="femail" placeholder="your@email.com" required>
+              <input class="form-input" type="email" id="femail" placeholder="your@email.com">
             </div>
 
             <div class="form-group">
@@ -595,27 +305,28 @@
 
             <div class="form-group">
               <label class="form-label" for="fmsg">訊息內容 <span class="req">*</span></label>
-              <textarea class="form-textarea" id="fmsg" placeholder="請詳細描述您的問題或需求，以便我們更快速地協助您…" required></textarea>
+              <textarea class="form-textarea" id="fmsg" placeholder="請詳細描述您的問題或需求，以便我們更快速地協助您…"></textarea>
             </div>
 
-            <button class="form-submit" id="submitBtn" type="button" onclick="submitForm()">
-              送出訊息
-            </button>
+            <button class="form-submit" id="submitBtn" type="button" onclick="submitForm()">送出訊息</button>
           </div>
 
           <!-- 成功畫面 -->
           <div class="success-state" id="successState">
             <div class="success-icon">🌿</div>
             <h3 class="success-title">訊息已送出</h3>
-            <p class="success-text">感謝您的來訊，我們將於 1 個工作日內回覆至您的信箱。</p>
-            <a href="index.html" class="success-back">回到首頁</a>
+            <p class="success-text">感謝您的來訊！我們將於 1 個工作日內處理。<br><br>您可在左側「查詢我的回覆」輸入 Email 查看回覆狀態。</p>
+            <div class="success-actions">
+              <a href="index.html" class="success-back primary">回到首頁</a>
+              <button class="success-back" onclick="resetForm()">再次留言</button>
+            </div>
           </div>
 
         </div>
       </section>
     </div>
 
-    <!-- ===== FAQ ===== -->
+    <!-- FAQ -->
     <section class="faq-section" id="faq" style="padding-bottom: 2rem;">
       <div class="section-header reveal">
         <span class="section-tag">FAQ</span>
@@ -650,7 +361,6 @@
     </section>
   </main>
 
-  <!-- ===== 頁尾 ===== -->
   <footer>
     <p>© 2025 芳萃本草 Botanical Essence. All rights reserved.</p>
     <div class="footer-links">
@@ -662,7 +372,23 @@
 
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, collection, addDoc, query, where, getDocs, serverTimestamp }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs7XOKmhYd4faBrODmsz913Ipc0dSnSlI",
+      authDomain: "vishmanni-b2f15.firebaseapp.com",
+      projectId: "vishmanni-b2f15",
+      storageBucket: "vishmanni-b2f15.firebasestorage.app",
+      messagingSenderId: "575119169685",
+      appId: "1:575119169685:web:fab464167abec7839d239c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
     // 導覽列滾動
     window.addEventListener('scroll', () => {
       document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 50);
@@ -693,17 +419,42 @@
       selectedTopic = chip.dataset.val;
     });
 
-    // FAQ 開合
-    function toggleFaq(el) {
+    // FAQ
+    window.toggleFaq = function(el) {
       const isOpen = el.classList.contains('open');
       document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
       if (!isOpen) el.classList.add('open');
-    }
+    };
 
-    // 表單送出
-    function submitForm() {
+    // Toast
+    window.showToast = function(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.remove('show'), 2600);
+    };
+
+    // 重置表單
+    window.resetForm = function() {
+      document.getElementById('successState').style.display = 'none';
+      document.getElementById('formState').style.display = 'block';
+      document.getElementById('fname').value = '';
+      document.getElementById('fphone').value = '';
+      document.getElementById('femail').value = '';
+      document.getElementById('forder').value = '';
+      document.getElementById('fmsg').value = '';
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = false; btn.textContent = '送出訊息';
+      selectedTopic = 'order';
+      document.querySelectorAll('.topic-chip').forEach(c => c.classList.toggle('active', c.dataset.val === 'order'));
+    };
+
+    // ===== 送出表單 → 寫入 Firestore =====
+    window.submitForm = async function() {
       const name  = document.getElementById('fname').value.trim();
       const email = document.getElementById('femail').value.trim();
+      const phone = document.getElementById('fphone').value.trim();
+      const order = document.getElementById('forder').value.trim();
       const msg   = document.getElementById('fmsg').value.trim();
 
       if (!name)  { showToast('⚠ 請填寫您的姓名'); return; }
@@ -711,24 +462,96 @@
       if (!msg)   { showToast('⚠ 請填寫訊息內容'); return; }
 
       const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.textContent = '傳送中…';
+      btn.disabled = true; btn.textContent = '傳送中…';
 
-      // 模擬送出（串接 Firebase / EmailJS 時替換此處）
-      setTimeout(() => {
+      try {
+        await addDoc(collection(db, 'contacts'), {
+          name,
+          email,
+          phone:     phone || '',
+          orderRef:  order || '',
+          topic:     selectedTopic,
+          message:   msg,
+          reply:     '',
+          isReplied: false,
+          createdAt: serverTimestamp(),
+          repliedAt: null,
+        });
+
         document.getElementById('formState').style.display = 'none';
-        const s = document.getElementById('successState');
-        s.style.display = 'flex';
-      }, 1200);
-    }
+        document.getElementById('successState').style.display = 'flex';
 
-    // Toast
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg; t.classList.add('show');
-      clearTimeout(t._timer);
-      t._timer = setTimeout(() => t.classList.remove('show'), 2600);
-    }
+      } catch (e) {
+        console.error(e);
+        showToast('❌ 送出失敗，請稍後再試');
+        btn.disabled = false; btn.textContent = '送出訊息';
+      }
+    };
+
+    // ===== 查詢回覆 =====
+    const topicLabels = {
+      order: '訂單查詢', product: '商品諮詢', return: '退換貨',
+      aroma: '芳療建議', wholesale: '批發合作', other: '其他問題'
+    };
+
+    window.lookupMessages = async function() {
+      const email = document.getElementById('lookupEmail').value.trim();
+      if (!email || !email.includes('@')) { showToast('⚠ 請輸入正確的 Email'); return; }
+
+      const btn = document.getElementById('lookupBtn');
+      btn.disabled = true; btn.textContent = '查詢中…';
+
+      const resultsEl = document.getElementById('lookupResults');
+      resultsEl.innerHTML = '';
+
+      try {
+        const q    = query(collection(db, 'contacts'), where('email', '==', email));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          resultsEl.innerHTML = '<p style="font-size:0.78rem;color:var(--ink-muted);padding-top:0.5rem">找不到此 Email 的留言記錄。</p>';
+        } else {
+          // 新到舊排序
+          const docs = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+          docs.forEach(doc => {
+            const date = doc.createdAt?.toDate
+              ? doc.createdAt.toDate().toLocaleString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+              : '—';
+
+            const replyHTML = doc.isReplied && doc.reply
+              ? `<div class="lri-reply">
+                   <div class="lri-reply-label">客服回覆</div>
+                   <div class="lri-reply-text">${doc.reply}</div>
+                 </div>`
+              : `<div class="lri-pending">尚未回覆，我們將盡快處理您的訊息</div>`;
+
+            const item = document.createElement('div');
+            item.className = 'lookup-result-item';
+            item.innerHTML = `
+              <div class="lri-topic">${topicLabels[doc.topic] || doc.topic}</div>
+              <div class="lri-msg">${doc.message}</div>
+              <div class="lri-date">留言時間：${date}</div>
+              ${replyHTML}
+            `;
+            resultsEl.appendChild(item);
+          });
+        }
+
+      } catch (e) {
+        console.error(e);
+        resultsEl.innerHTML = '<p style="font-size:0.78rem;color:var(--ink-muted);padding-top:0.5rem">查詢失敗，請稍後再試。</p>';
+      }
+
+      btn.disabled = false; btn.textContent = '查詢';
+    };
+
+    // Enter 鍵觸發查詢
+    document.getElementById('lookupEmail').addEventListener('keydown', e => {
+      if (e.key === 'Enter') lookupMessages();
+    });
   </script>
 </body>
 </html>
