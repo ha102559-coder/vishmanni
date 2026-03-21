@@ -626,9 +626,6 @@
   let cart = JSON.parse(localStorage.getItem('aromaCart') || '[]');
   let appliedCoupon = null;
 
-  // ===== 初始化 =====
-  renderCart();
-
   function renderCart() {
     const container = document.getElementById('cartItems');
     container.innerHTML = '';
@@ -832,6 +829,9 @@
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 2500);
   }
+
+  // ===== 初始化（所有函式定義完後才執行）=====
+  renderCart();
 
   // 導覽列滾動
   window.addEventListener('scroll', () => {
