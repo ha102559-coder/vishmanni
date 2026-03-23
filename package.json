@@ -1,0 +1,16 @@
+{
+  "name": "vishmanni",
+  "version": "1.0.0",
+  "description": "``` ecpay-functions/ ├── firebase.json          ← Firebase 專案設定 └── functions/     ├── index.js           ← Cloud Function 主程式     └── package.json       ← 套件設定 ```",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase-admin": "^13.7.0"
+  }
+}
