@@ -184,7 +184,7 @@
     async function redirectToECPay(orderId, total, paymentMethod, shippingMethod) {
       // ⚠️ 這裡需要呼叫你的 Firebase Cloud Function 產生 ECPay 表單
       // Cloud Function URL 範例（部署後替換）：
-      const CF_URL = 'https://asia-east1-YOUR_PROJECT.cloudfunctions.net/createECPayOrder';
+      const CF_URL = 'https://asia-east1-vishmanni-b2f15.cloudfunctions.net/createECPayOrder';
 
       try {
         const res = await fetch(CF_URL, {
