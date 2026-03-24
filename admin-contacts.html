@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>留言管理｜芳萃本草後台</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs7XOKmhYd4faBrODmsz913Ipc0dSnSlI",
+      authDomain: "vishmanni-b2f15.firebaseapp.com",
+      projectId: "vishmanni-b2f15",
+      storageBucket: "vishmanni-b2f15.firebasestorage.app",
+      messagingSenderId: "575119169685",
+      appId: "1:575119169685:web:fab464167abec7839d239c",
+      measurementId: "G-SW7LQLVH2P"
+    };
+
+    const ADMIN_EMAIL = "enzdwllg@gmail.com";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    let allContacts = [];
+    let unsubscribe = null;
+    let currentFilter = 'all';
+    let searchQ = '';
+    let selectedId = null;
+
+    // ===== Auth =====
+    onAuthStateChanged(auth, user => {
+      if (!user) { showLogin(); return; }
+      if (user.email !== ADMIN_EMAIL) { showDenied(); return; }
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('adminApp').style.display = 'grid';
+      document.getElementById('adminEmail').textContent = user.email;
+      startListen();
+    });
+
+    function showLogin() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('adminApp').style.display = 'none';
+    }
+    function showDenied() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('adminApp').style.display = 'none';
+      document.getElementById('deniedScreen').style.display = 'flex';
+    }
+
+    window.googleLogin = async () => {
+      try { await signInWithPopup(auth, provider); }
+      catch(e) { showToast(e.message, 'error'); }
+    };
+    window.logout = async () => {
+      if (unsubscribe) unsubscribe();
+      await signOut(auth);
+    };
+
+    // ===== 即時監聽 =====
+    function startListen() {
+      const q = query(collection(db, 'contacts'), orderBy('createdAt', 'desc'));
+      unsubscribe = onSnapshot(q, snap => {
+        const prev = allContacts.length;
+        allContacts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderStats();
+        applyFilter();
+        // 新留言通知
+        snap.docChanges().forEach(change => {
+          if (change.type === 'added' && prev > 0) {
+            const c = change.doc.data();
+            showToast(`💬 新留言！${c.name}：${(c.message||'').slice(0,20)}…`, 'new');
+          }
+        });
+      });
+    }
+
+    // ===== 統計 =====
+    function renderStats() {
+      const total = allContacts.length;
+      const unread = allContacts.filter(c => !c.isReplied).length;
+      const replied = allContacts.filter(c => c.isReplied).length;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statUnread').textContent = unread;
+      document.getElementById('statReplied').textContent = replied;
+    }
+
+    // ===== 篩選 =====
+    window.setFilter = (f) => {
+      currentFilter = f;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+      applyFilter();
+    };
+
+    window.onSearchInput = () => {
+      searchQ = document.getElementById('searchInput').value.trim().toLowerCase();
+      applyFilter();
+    };
+
+    function applyFilter() {
+      let list = allContacts.filter(c => {
+        const matchFilter =
+          currentFilter === 'all' ? true :
+          currentFilter === 'unread' ? !c.isReplied :
+          currentFilter === 'replied' ? c.isReplied : true;
+        const matchQ = !searchQ ||
+          (c.name||'').toLowerCase().includes(searchQ) ||
+          (c.email||'').toLowerCase().includes(searchQ) ||
+          (c.message||'').toLowerCase().includes(searchQ);
+        return matchFilter && matchQ;
+      });
+      document.getElementById('resultCount').textContent = `共 ${list.length} 筆`;
+      renderList(list);
+    }
+
+    // ===== 渲染列表 =====
+    function renderList(list) {
+      const el = document.getElementById('contactList');
+      if (list.length === 0) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div>目前沒有留言</div></div>`;
+        return;
+      }
+      el.innerHTML = list.map(c => {
+        const date = c.createdAt?.toDate
+          ? c.createdAt.toDate().toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+          : '—';
+        const topicLabel = {
+          order:'訂單查詢', product:'商品諮詢', return:'退換貨', other:'其他'
+        }[c.topic] || c.topic || '一般';
+        const isSelected = c.id === selectedId;
+        return `
+        <div class="contact-item ${c.isReplied ? '' : 'unread'} ${isSelected ? 'selected' : ''}"
+             onclick="selectContact('${c.id}')">
+          <div class="contact-item-top">
+            <span class="contact-name">${esc(c.name||'—')}</span>
+            <span class="contact-date">${date}</span>
+          </div>
+          <div class="contact-item-mid">
+            <span class="topic-tag">${topicLabel}</span>
+            <span class="contact-email">${esc(c.email||'')}</span>
+          </div>
+          <div class="contact-preview">${esc((c.message||'').slice(0, 60))}${c.message?.length > 60 ? '…' : ''}</div>
+          ${!c.isReplied ? '<div class="unread-dot"></div>' : ''}
+        </div>`;
+      }).join('');
+    }
+
+    // ===== 選取留言 =====
+    window.selectContact = (id) => {
+      selectedId = id;
+      const c = allContacts.find(x => x.id === id);
+      if (!c) return;
+      applyFilter(); // 重新渲染列表（更新 selected 狀態）
+
+      const topicLabel = {
+        order:'訂單查詢', product:'商品諮詢', return:'退換貨', other:'其他'
+      }[c.topic] || c.topic || '一般';
+      const date = c.createdAt?.toDate
+        ? c.createdAt.toDate().toLocaleString('zh-TW')
+        : '—';
+      const repliedDate = c.repliedAt?.toDate
+        ? c.repliedAt.toDate().toLocaleString('zh-TW')
+        : null;
+
+      document.getElementById('detailPanel').innerHTML = `
+        <div class="detail-header">
+          <div class="detail-name">${esc(c.name||'—')}</div>
+          <span class="status-badge ${c.isReplied ? 'replied' : 'unread-badge'}">${c.isReplied ? '已回覆' : '未回覆'}</span>
+        </div>
+        <div class="detail-meta">
+          <div class="meta-row"><span class="meta-label">📧 Email</span><a href="mailto:${esc(c.email)}" class="meta-link">${esc(c.email||'—')}</a></div>
+          <div class="meta-row"><span class="meta-label">📱 電話</span><span>${esc(c.phone||'—')}</span></div>
+          <div class="meta-row"><span class="meta-label">📋 主題</span><span class="topic-tag">${topicLabel}</span></div>
+          ${c.orderRef ? `<div class="meta-row"><span class="meta-label">🛒 訂單編號</span><span>${esc(c.orderRef)}</span></div>` : ''}
+          <div class="meta-row"><span class="meta-label">🕐 時間</span><span>${date}</span></div>
+        </div>
+        <div class="detail-section-label">留言內容</div>
+        <div class="detail-message">${esc(c.message||'').replace(/\n/g, '<br>')}</div>
+
+        ${c.isReplied ? `
+          <div class="detail-section-label" style="margin-top:1.5rem;">回覆內容 <span style="font-size:0.7rem;color:var(--text-light);font-weight:400;">${repliedDate ? '（'+repliedDate+'）' : ''}</span></div>
+          <div class="detail-reply-box">${esc(c.reply||'').replace(/\n/g, '<br>')}</div>
+          <button class="btn-secondary" onclick="openReply('${id}', true)">修改回覆</button>
+        ` : `
+          <button class="btn-primary" onclick="openReply('${id}', false)" style="margin-top:1.5rem;">✏️ 回覆留言</button>
+        `}
+        <button class="btn-danger" onclick="toggleRead('${id}', ${c.isReplied})" style="margin-top:0.5rem;">
+          ${c.isReplied ? '標記為未回覆' : '標記為已回覆（無需回覆）'}
+        </button>
+      `;
+
+      document.getElementById('replyArea').style.display = 'none';
+    };
+
+    // ===== 開啟回覆框 =====
+    window.openReply = (id, isEdit) => {
+      const c = allContacts.find(x => x.id === id);
+      const area = document.getElementById('replyArea');
+      area.style.display = 'block';
+      document.getElementById('replyText').value = isEdit ? (c?.reply || '') : '';
+      document.getElementById('replyText').focus();
+      document.getElementById('replySubmitBtn').onclick = () => submitReply(id);
+      area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    window.cancelReply = () => {
+      document.getElementById('replyArea').style.display = 'none';
+    };
+
+    // ===== 送出回覆 =====
+    async function submitReply(id) {
+      const reply = document.getElementById('replyText').value.trim();
+      if (!reply) { showToast('請填寫回覆內容', 'error'); return; }
+      const btn = document.getElementById('replySubmitBtn');
+      btn.disabled = true; btn.textContent = '送出中…';
+      try {
+        await updateDoc(doc(db, 'contacts', id), {
+          reply,
+          isReplied: true,
+          repliedAt: serverTimestamp(),
+        });
+        showToast('✅ 回覆已儲存');
+        document.getElementById('replyArea').style.display = 'none';
+        selectContact(id);
+      } catch(e) {
+        showToast('儲存失敗：' + e.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '送出回覆';
+      }
+    }
+
+    // ===== 切換已讀狀態 =====
+    window.toggleRead = async (id, current) => {
+      try {
+        await updateDoc(doc(db, 'contacts', id), { isReplied: !current });
+        showToast(current ? '已標記為未回覆' : '已標記為已回覆');
+        selectContact(id);
+      } catch(e) {
+        showToast('更新失敗', 'error');
+      }
+    };
+
+    // ===== 工具 =====
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(msg, type = 'ok') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show ' + type;
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600&family=Noto+Serif+TC:wght@400;600&family=Cormorant+Garamond:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #F4F1EC;
+      --surface: #FDFAF6;
+      --sidebar: #2C2416;
+      --sage: #7a9e7e;
+      --sage-deep: #4E5E45;
+      --gold: #C9A84C;
+      --text: #2C2416;
+      --text-light: #8B7355;
+      --border: rgba(44,36,22,0.1);
+      --unread: #FFF8F0;
+      --unread-border: #C9A84C;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+    /* ── Login / Denied ── */
+    #loginScreen, #deniedScreen {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--sidebar); z-index: 999; flex-direction: column; gap: 1.2rem;
+    }
+    #deniedScreen { display: none; }
+    .login-box { text-align: center; color: rgba(255,255,255,0.85); }
+    .login-box .logo-cn { font-size: 1.3rem; font-weight: 600; color: var(--sage); letter-spacing: 0.15em; margin-bottom: 0.3rem; }
+    .login-box .logo-en { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.8rem; color: var(--gold); letter-spacing: 0.2em; margin-bottom: 2rem; }
+    .google-btn { display: flex; align-items: center; gap: 0.7rem; background: #fff; color: #333; border: none; padding: 0.75rem 1.8rem; border-radius: 4px; font-size: 0.85rem; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; transition: box-shadow 0.2s; }
+    .google-btn:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.25); }
+
+    /* ── Layout ── */
+    #adminApp { display: none; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar { background: var(--sidebar); padding: 2rem 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 0 1.8rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-logo .cn { font-size: 1.1rem; font-weight: 600; color: var(--sage); letter-spacing: 0.12em; }
+    .sidebar-logo .en { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.72rem; color: var(--gold); letter-spacing: 0.2em; }
+    .sidebar-logo .badge { margin-top: 0.4rem; font-size: 0.65rem; color: rgba(255,255,255,0.3); }
+    .sidebar-nav { padding: 1.5rem 0; flex: 1; }
+    .nav-group-title { font-size: 0.65rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.3); padding: 0 1.8rem; margin-bottom: 0.5rem; margin-top: 1.2rem; }
+    .sidebar-nav a { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 1.8rem; text-decoration: none; font-size: 0.82rem; color: rgba(255,255,255,0.55); letter-spacing: 0.06em; transition: all 0.25s; position: relative; }
+    .sidebar-nav a:hover, .sidebar-nav a.active { color: rgba(255,255,255,0.95); background: rgba(255,255,255,0.06); }
+    .sidebar-nav a.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--gold); }
+    .sidebar-nav .icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-footer { padding: 1.5rem 1.8rem; border-top: 1px solid rgba(255,255,255,0.08); }
+    .admin-user { font-size: 0.72rem; color: rgba(255,255,255,0.4); margin-bottom: 0.6rem; word-break: break-all; }
+    .logout-btn { width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); padding: 0.5rem; font-size: 0.78rem; cursor: pointer; border-radius: 2px; font-family: 'Noto Sans TC', sans-serif; transition: all 0.2s; }
+    .logout-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    /* ── Main ── */
+    .main-content { padding: 2rem 2.5rem; display: flex; flex-direction: column; gap: 1.5rem; overflow: hidden; }
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; }
+    .page-header h1 { font-family: 'Noto Serif TC', serif; font-size: 1.4rem; font-weight: 600; color: var(--text); }
+    .breadcrumb { font-size: 0.72rem; color: var(--text-light); margin-top: 0.2rem; }
+    .live-hint { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: var(--text-light); }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sage); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* ── Stats ── */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); padding: 1.2rem 1.5rem; border-radius: 2px; }
+    .stat-card.warn { border-left: 3px solid var(--gold); }
+    .stat-label { font-size: 0.72rem; color: var(--text-light); letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .stat-value { font-size: 1.8rem; font-weight: 600; color: var(--text); font-family: 'Noto Serif TC', serif; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+    .search-input { flex: 1; min-width: 200px; padding: 0.55rem 0.9rem; border: 1px solid var(--border); background: var(--surface); border-radius: 2px; font-size: 0.82rem; font-family: 'Noto Sans TC', sans-serif; color: var(--text); outline: none; transition: border-color 0.2s; }
+    .search-input:focus { border-color: var(--sage); }
+    .filter-btn { padding: 0.5rem 1rem; border: 1px solid var(--border); background: var(--surface); border-radius: 2px; font-size: 0.78rem; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; color: var(--text-light); transition: all 0.2s; }
+    .filter-btn.active { background: var(--sage-deep); color: #fff; border-color: var(--sage-deep); }
+    .result-count { font-size: 0.75rem; color: var(--text-light); margin-left: auto; white-space: nowrap; }
+
+    /* ── Two-column layout ── */
+    .contacts-layout { display: grid; grid-template-columns: 340px 1fr; gap: 1.2rem; align-items: start; }
+
+    /* ── Contact List ── */
+    .contact-list-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; max-height: calc(100vh - 260px); overflow-y: auto; }
+    .contact-item { padding: 1rem 1.2rem; border-bottom: 1px solid var(--border); cursor: pointer; position: relative; transition: background 0.15s; }
+    .contact-item:last-child { border-bottom: none; }
+    .contact-item:hover { background: var(--bg); }
+    .contact-item.unread { background: var(--unread); border-left: 3px solid var(--unread-border); }
+    .contact-item.selected { background: rgba(78,94,69,0.08); border-left: 3px solid var(--sage-deep); }
+    .contact-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem; }
+    .contact-name { font-weight: 600; font-size: 0.88rem; }
+    .contact-date { font-size: 0.68rem; color: var(--text-light); }
+    .contact-item-mid { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; }
+    .contact-email { font-size: 0.72rem; color: var(--text-light); }
+    .contact-preview { font-size: 0.78rem; color: var(--text-light); line-height: 1.4; }
+    .unread-dot { position: absolute; top: 1rem; right: 1rem; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+    .topic-tag { display: inline-block; padding: 0.15rem 0.5rem; background: rgba(78,94,69,0.1); color: var(--sage-deep); border-radius: 2px; font-size: 0.68rem; letter-spacing: 0.05em; white-space: nowrap; }
+    .empty-state { padding: 3rem; text-align: center; color: var(--text-light); display: flex; flex-direction: column; align-items: center; gap: 0.8rem; }
+    .empty-icon { font-size: 2.5rem; }
+
+    /* ── Detail Panel ── */
+    .detail-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 1.8rem; min-height: 300px; }
+    .detail-placeholder { display: flex; align-items: center; justify-content: center; height: 300px; color: var(--text-light); font-size: 0.85rem; }
+    .detail-header { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    .detail-name { font-family: 'Noto Serif TC', serif; font-size: 1.2rem; font-weight: 600; }
+    .status-badge { padding: 0.2rem 0.7rem; border-radius: 2px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; }
+    .status-badge.replied { background: rgba(78,94,69,0.12); color: var(--sage-deep); }
+    .status-badge.unread-badge { background: rgba(201,168,76,0.15); color: #8B6914; }
+    .detail-meta { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem; }
+    .meta-row { display: flex; align-items: center; gap: 0.8rem; font-size: 0.82rem; }
+    .meta-label { color: var(--text-light); min-width: 90px; }
+    .meta-link { color: var(--sage-deep); text-decoration: none; }
+    .meta-link:hover { text-decoration: underline; }
+    .detail-section-label { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--text-light); margin-bottom: 0.6rem; text-transform: uppercase; }
+    .detail-message { background: var(--bg); border: 1px solid var(--border); padding: 1rem 1.2rem; font-size: 0.88rem; line-height: 1.8; border-radius: 2px; white-space: pre-wrap; }
+    .detail-reply-box { background: rgba(78,94,69,0.06); border: 1px solid rgba(78,94,69,0.2); padding: 1rem 1.2rem; font-size: 0.88rem; line-height: 1.8; border-radius: 2px; margin-bottom: 0.8rem; }
+
+    /* ── Reply Area ── */
+    .reply-area { margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.2rem; }
+    .reply-area textarea { width: 100%; height: 120px; padding: 0.8rem 1rem; border: 1px solid var(--border); background: var(--bg); border-radius: 2px; font-family: 'Noto Sans TC', sans-serif; font-size: 0.85rem; color: var(--text); resize: vertical; outline: none; transition: border-color 0.2s; }
+    .reply-area textarea:focus { border-color: var(--sage); }
+    .reply-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; }
+
+    /* ── Buttons ── */
+    .btn-primary { display: inline-block; padding: 0.6rem 1.4rem; background: var(--sage-deep); color: #fff; border: none; border-radius: 2px; font-size: 0.82rem; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; transition: background 0.2s; letter-spacing: 0.05em; }
+    .btn-primary:hover { background: #3a4a32; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { display: inline-block; padding: 0.6rem 1.2rem; background: transparent; color: var(--sage-deep); border: 1px solid var(--sage-deep); border-radius: 2px; font-size: 0.82rem; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; transition: all 0.2s; }
+    .btn-secondary:hover { background: var(--sage-deep); color: #fff; }
+    .btn-danger { display: inline-block; padding: 0.5rem 1rem; background: transparent; color: #999; border: 1px solid #ddd; border-radius: 2px; font-size: 0.78rem; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; transition: all 0.2s; width: 100%; text-align: center; }
+    .btn-danger:hover { background: #fff0f0; color: #c0392b; border-color: #c0392b; }
+
+    /* ── Toast ── */
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; padding: 0.7rem 1.4rem; border-radius: 4px; font-size: 0.82rem; z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.ok { background: var(--sage-deep); color: #fff; }
+    .toast.error { background: #c0392b; color: #fff; }
+    .toast.new { background: var(--gold); color: #2C2416; }
+
+    @media (max-width: 900px) {
+      #adminApp { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .contacts-layout { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo-cn">芳萃本草</div>
+    <div class="logo-en">Botanical Essence</div>
+    <button class="google-btn" onclick="googleLogin()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+      以 Google 帳號登入
+    </button>
+  </div>
+</div>
+
+<!-- Denied -->
+<div id="deniedScreen">
+  <div class="login-box">
+    <div style="font-size:2rem;margin-bottom:1rem;">🚫</div>
+    <div style="color:rgba(255,255,255,0.7);">此帳號無管理員權限</div>
+  </div>
+</div>
+
+<!-- Admin App -->
+<div id="adminApp">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="cn">芳萃本草</div>
+      <div class="en">Botanical Essence</div>
+      <div class="badge">管理後台</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group-title">商品管理</div>
+      <a href="admin-products.html"><span class="icon">📦</span>商品列表</a>
+      <a href="edit.html"><span class="icon">✏️</span>新增商品</a>
+      <div class="nav-group-title">訂單管理</div>
+      <a href="admin-orders.html"><span class="icon">📋</span>訂單 ＆ 出貨</a>
+      <div class="nav-group-title">客服</div>
+      <a href="admin-contacts.html" class="active"><span class="icon">💬</span>買家留言</a>
+      <div class="nav-group-title">其他</div>
+      <a href="/index.html" target="_blank"><span class="icon">🌐</span>檢視前台</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="admin-user" id="adminEmail"></div>
+      <button class="logout-btn" onclick="logout()">登出</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <div class="page-header">
+      <div>
+        <h1>買家留言管理</h1>
+        <div class="breadcrumb">後台管理 › 客服 › 買家留言</div>
+      </div>
+      <div class="live-hint">
+        <span class="live-dot"></span>即時同步中
+      </div>
+    </div>
+
+    <!-- 統計 -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">全部留言</div>
+        <div class="stat-value" id="statTotal">—</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="stat-label">未回覆</div>
+        <div class="stat-value" id="statUnread">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已回覆</div>
+        <div class="stat-value" id="statReplied">—</div>
+      </div>
+    </div>
+
+    <!-- 工具列 -->
+    <div class="toolbar">
+      <input class="search-input" id="searchInput" placeholder="搜尋姓名、Email、內容…" oninput="onSearchInput()">
+      <button class="filter-btn active" data-f="all" onclick="setFilter('all')">全部</button>
+      <button class="filter-btn" data-f="unread" onclick="setFilter('unread')">未回覆</button>
+      <button class="filter-btn" data-f="replied" onclick="setFilter('replied')">已回覆</button>
+      <span class="result-count" id="resultCount">—</span>
+    </div>
+
+    <!-- 留言列表 + 詳情 -->
+    <div class="contacts-layout">
+      <div class="contact-list-wrap" id="contactList">
+        <div class="empty-state">
+          <div class="empty-icon">💬</div>
+          <div>載入中…</div>
+        </div>
+      </div>
+
+      <div class="detail-wrap">
+        <div id="detailPanel">
+          <div class="detail-placeholder">← 點選左側留言查看詳情</div>
+        </div>
+        <div class="reply-area" id="replyArea" style="display:none;">
+          <div class="detail-section-label" style="margin-bottom:0.6rem;">回覆內容</div>
+          <textarea id="replyText" placeholder="輸入回覆內容…"></textarea>
+          <div class="reply-actions">
+            <button class="btn-primary" id="replySubmitBtn">送出回覆</button>
+            <button class="btn-secondary" onclick="cancelReply()">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+</body>
+</html>
